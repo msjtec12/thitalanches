@@ -1,4 +1,5 @@
-export const formatPrice = (price: number) => {
+export const formatPrice = (price: number | undefined | null) => {
+  if (price === undefined || price === null) return 'R$ 0,00';
   return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 

@@ -21,7 +21,13 @@ export const db = {
     return {
       ...data,
       isStreetValidationEnabled: data.is_street_validation_enabled,
-      neighborhoods: neighborhoods || []
+      neighborhoods: (neighborhoods || []).map(n => ({
+        id: n.id,
+        name: n.name,
+        deliveryFee: n.delivery_fee,
+        estimatedDistanceKm: n.estimated_distance_km,
+        allowedStreets: n.allowed_streets
+      }))
     };
   },
 
