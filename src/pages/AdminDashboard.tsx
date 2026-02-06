@@ -29,7 +29,8 @@ export default function AdminDashboard() {
   const [pinError, setPinError] = useState(false);
   const [activeTab, setActiveTab] = useState('orders');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('admin_authenticated') === 'true';
+    // Only trust session if role is also set (double check)
+    return sessionStorage.getItem('admin_authenticated') === 'true' && userRole === 'admin';
   });
 
   const handleRoleChange = (role: 'admin' | 'employee') => {

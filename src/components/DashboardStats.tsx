@@ -1,5 +1,6 @@
 import { useOrders } from '@/contexts/OrderContext';
 import { ShoppingBag, Clock, CheckCircle2, DollarSign } from 'lucide-react';
+import { formatPrice } from '@/utils/format';
 
 export function DashboardStats() {
   const { orders } = useOrders();
@@ -36,7 +37,7 @@ export function DashboardStats() {
     },
     {
       label: 'Faturamento Total',
-      value: totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      value: formatPrice(totalRevenue),
       icon: DollarSign,
       color: 'text-purple-500',
       bg: 'bg-purple-500/10'

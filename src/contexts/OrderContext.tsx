@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Order, OrderStatus, Product, StoreSettings, Category, CashierLog } from '@/types/order';
-import { initialOrders, products as initialProducts, storeSettings as initialSettings, categories as initialCategories } from '@/data/mockData';
 import { db } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 
@@ -14,7 +13,6 @@ interface OrderContextType {
   updatePaymentStatus: (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => void;
   updateScheduledTime: (orderId: string, time: string) => void;
   cancelOrder: (orderId: string) => void;
-  getNextOrderNumber: () => number;
   updateProduct: (product: Product) => void;
   deleteProduct: (productId: string) => void;
   updateSettings: (settings: StoreSettings) => void;
@@ -30,14 +28,25 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+// Default settings to avoid breakages during loading
+const defaultSettings: StoreSettings = {
+  name: 'Thita Lanches',
+  isOpen: true,
+  isCashierOpen: false,
+  prepTime: 30,
+  deliveryRadius: 10,
+  neighborhoods: [],
+  openingHours: [],
+  schedulingInterval: 15,
+};
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [settings, setSettings] = useState<StoreSettings>(initialSettings);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [cashierLogs, setCashierLogs] = useState<CashierLog[]>([]);
-  const [userRole, setUserRole] = useState<'admin' | 'employee'>('admin');
-  const [orderCounter, setOrderCounter] = useState(1);
+  const [userRole, setUserRole] = useState<'admin' | 'employee'>('employee');
 
   // Load from Supabase on init
   useEffect(() => {
@@ -73,12 +82,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id' | 'number' | 'createdAt'>) => {
     try {
       const newOrder = await db.createOrder(orderData);
+      
+      // If DB failed to return a sequential number, fallback to local count
+      if (!newOrder.number) {
+        const lastNumber = orders.length > 0 ? Math.max(...orders.map(o => o.number || 0)) : 0;
+        newOrder.number = lastNumber + 1;
+      }
+
       setOrders(prev => [newOrder, ...prev]);
       return newOrder;
     } catch (err) {
       console.error("Error adding order:", err);
       // Fallback local for UX
-      const localOrder: Order = { ...orderData, id: `temp-${Date.now()}`, number: orders.length + 1, createdAt: new Date() };
+      const lastNumber = orders.length > 0 ? Math.max(...orders.map(o => o.number || 0)) : 0;
+      const localOrder: Order = { ...orderData, id: `temp-${Date.now()}`, number: lastNumber + 1, createdAt: new Date() };
       setOrders(prev => [localOrder, ...prev]);
       return localOrder;
     }
@@ -89,12 +106,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await db.updateOrderStatus(orderId, status);
   };
 
-  const updatePaymentStatus = (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => {
+  const updatePaymentStatus = async (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => {
     setOrders(prev =>
       prev.map(order =>
         order.id === orderId ? { ...order, paymentStatus: status, paymentMethod: method || order.paymentMethod } : order
       )
     );
+    await db.updatePaymentStatus(orderId, status, method);
   };
 
   const updateScheduledTime = (orderId: string, time: string) => {
@@ -109,7 +127,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     updateOrderStatus(orderId, 'cancelled');
   };
 
-  const getNextOrderNumber = () => orders.length + 1;
 
   const updateProduct = (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -147,12 +164,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await db.updateSettings(newSettings);
   };
 
-  const markOrderAsPrinted = (orderId: string) => {
+  const markOrderAsPrinted = async (orderId: string) => {
     setOrders(prev =>
       prev.map(order =>
         order.id === orderId ? { ...order, isPrinted: true } : order
       )
     );
+    await db.markOrderAsPrinted(orderId);
   };
   const addCategory = (category: Category) => {
     setCategories(prev => [...prev, category]);
@@ -189,7 +207,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       updatePaymentStatus,
       updateScheduledTime, 
       cancelOrder,
-      getNextOrderNumber,
       updateProduct,
       deleteProduct,
       updateSettings,

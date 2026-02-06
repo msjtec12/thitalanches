@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+import { formatPrice } from '@/utils/format';
+
 interface ProductCardProps {
   product: Product;
 }
@@ -22,10 +24,6 @@ export function ProductCard({ product }: ProductCardProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
   const [observation, setObservation] = useState('');
-
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
 
   const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.price, 0);
   const itemTotal = (product.price + extrasTotal) * quantity;

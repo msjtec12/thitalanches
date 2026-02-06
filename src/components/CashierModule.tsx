@@ -36,6 +36,8 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 
+import { formatPrice } from '@/utils/format';
+
 export function CashierModule() {
   const { 
     orders, 
@@ -48,10 +50,6 @@ export function CashierModule() {
 
   const [initialValue, setInitialValue] = useState<number>(0);
   const [note, setNote] = useState('');
-
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
 
   const lastLog = cashierLogs[0];
   const lastOpenLog = cashierLogs.find(l => l.type === 'open');

@@ -1,34 +1,36 @@
+import { formatPrice } from '@/utils/format';
+import { useOrders } from '@/contexts/OrderContext';
 import { Order } from '@/types/order';
-import { storeSettings } from '@/data/mockData';
 
 interface OrderPrinterProps {
   order: Order;
 }
 
 export function OrderPrinter({ order }: OrderPrinterProps) {
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
-
+  const { settings } = useOrders();
   const formatDateTime = (date: Date) => {
-    return date.toLocaleString('pt-BR', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    try {
+      return date.toLocaleString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (e) {
+      return '--/--/---- --:--';
+    }
   };
 
   return (
     <div className="print-only p-4 text-black bg-white font-mono text-sm leading-tight w-[80mm] mx-auto border border-black/10">
       <div className="text-center mb-4 border-b border-black border-dashed pb-2">
-        <h1 className="text-xl font-bold uppercase">{storeSettings.name}</h1>
+        <h1 className="text-xl font-bold uppercase">{settings.name}</h1>
         <p className="text-xs">Comprovante de Pedido</p>
       </div>
 
       <div className="flex justify-between items-center mb-2">
-        <span className="text-lg font-bold">#{order.number}</span>
+        <span className="text-lg font-bold">#{order.number || '---'}</span>
         <span className="text-xs">{formatDateTime(order.createdAt)}</span>
       </div>
 
@@ -36,6 +38,7 @@ export function OrderPrinter({ order }: OrderPrinterProps) {
         <p><strong>Origem:</strong> {
           order.origin === 'online' ? 'WhatsApp' :
           order.origin === 'counter' ? 'Balcão' :
+          order.origin === 'counter_qr' ? 'Balcão (QR)' :
           order.origin === 'table' ? 'Mesa' : 'iFood'
         }</p>
         
@@ -49,7 +52,7 @@ export function OrderPrinter({ order }: OrderPrinterProps) {
           <div className="mt-2 border-t border-black border-dotted pt-1">
              <p className="font-bold uppercase">ENTREGA (DELIVERY)</p>
              <p>End: {order.deliveryInfo.street}, {order.deliveryInfo.number}</p>
-             <p>Bairro: {storeSettings.neighborhoods.find(n => n.id === order.deliveryInfo?.neighborhoodId)?.name}</p>
+             <p>Bairro: {settings.neighborhoods.find(n => n.id === order.deliveryInfo?.neighborhoodId)?.name}</p>
              {order.deliveryInfo.complement && <p>Comp: {order.deliveryInfo.complement}</p>}
              {order.deliveryInfo.reference && <p>Ref: {order.deliveryInfo.reference}</p>}
           </div>

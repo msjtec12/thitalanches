@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
-import { useCart } from '@/contexts/CartContext';
-// Static imports removed to use context
 import { OrderOrigin, PickupType, Product, ProductExtra } from '@/types/order';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Minus, X, ShoppingCart, Check, AlertTriangle } from 'lucide-react';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 import { formatPrice } from '@/utils/format';
-// Static imports removed to use context
 
 interface ManualCartItem {
   id: string;
@@ -38,6 +35,7 @@ export function ManualOrderForm() {
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash'>('pix');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
   const [deliveryInfo, setDeliveryInfo] = useState({
     neighborhoodId: '',
     street: '',
@@ -84,22 +82,21 @@ export function ManualOrderForm() {
   const generateTimeSlots = () => {
     const slots: string[] = [];
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const minAdvance = 30; // 30 min minimum
+    const startTime = new Date(now.getTime() + minAdvance * 60000);
     
-    const minAdvance = 30; // Minimum 30 min for scheduled orders
-    const minTime = new Date(now.getTime() + minAdvance * 60000);
-
-    for (let hour = 11; hour <= 23; hour++) {
-      for (let minute = 0; minute < 60; minute += settings.schedulingInterval) {
-        const slotDate = new Date();
-        slotDate.setHours(hour, minute, 0, 0);
-
-        if (slotDate > minTime) {
-          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          slots.push(timeStr);
-        }
+    // Generar slots considerando intervalos de 15 min nas próximas 24h
+    for (let i = 0; i < 96; i++) {
+      const slot = new Date();
+      // Arredonda para o próximo intervalo de 15min e soma os slots
+      const startMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+      slot.setMinutes(startMinutes + (i * 15), 0, 0);
+      
+      if (slot > startTime) {
+        const timeStr = `${slot.getHours().toString().padStart(2, '0')}:${slot.getMinutes().toString().padStart(2, '0')}`;
+        if (!slots.includes(timeStr)) slots.push(timeStr);
       }
+      if (slots.length >= 24) break; // Mostra as próximas horas disponíveis
     }
     return slots;
   };
@@ -130,7 +127,7 @@ export function ManualOrderForm() {
 
 
   const handleSubmit = async () => {
-    await addOrder({
+    const newOrder = await addOrder({
       origin,
       pickupType,
       scheduledTime: pickupType === 'scheduled' ? scheduledTime : undefined,
@@ -150,6 +147,7 @@ export function ManualOrderForm() {
       paymentMethod: paymentStatus === 'paid' ? paymentMethod : undefined,
       total: grandTotal,
     });
+    setCreatedOrder(newOrder);
     setStep('success');
   };
 
@@ -161,6 +159,7 @@ export function ManualOrderForm() {
     setPickupType('immediate');
     setScheduledTime('');
     setInternalObservation('');
+    setCreatedOrder(null);
     setStep('products');
   };
 
@@ -562,7 +561,7 @@ export function ManualOrderForm() {
               <Check className="w-8 h-8 text-success" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Pedido criado!</h3>
+              <h3 className="text-lg font-semibold">Pedido #{createdOrder?.number} criado!</h3>
               <p className="text-muted-foreground">O pedido foi adicionado à fila.</p>
             </div>
             <div className="flex gap-3">

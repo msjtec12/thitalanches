@@ -3,12 +3,13 @@ import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin } from 'lucide-react';
+import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { OrderPrinter } from './OrderPrinter';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { formatPrice, formatTime as formatTimeUtil } from '@/utils/format';
 
 interface OrderCardProps {
   order: Order;
@@ -27,6 +28,7 @@ const originLabels: Record<string, string> = {
   counter: 'Balcão',
   table: 'Mesa',
   ifood: 'iFood',
+  counter_qr: 'Balcão',
 };
 
 const paymentMethodLabels: Record<string, string> = {
@@ -50,12 +52,12 @@ export function OrderCard({ order }: OrderCardProps) {
     return digits;
   };
 
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
-
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    try {
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '--:--';
+    }
   };
 
   const handleAdvanceStatus = () => {
@@ -155,6 +157,17 @@ export function OrderCard({ order }: OrderCardProps) {
     window.open(`https://wa.me/${formatWhatsAppNumber(order.customerPhone)}?text=${message}`, '_blank');
   };
 
+  const handleConfirmOrder = () => {
+    if (!order.customerPhone) return;
+    const message = encodeURIComponent(
+      `✅ *PEDIDO RECEBIDO!* \n\n` +
+      `Olá, *${order.customerName}*! \n` +
+      `Recebemos seu pedido *#${order.number}* e já vamos começar a preparar com todo carinho. \n\n` +
+      `Você pode acompanhar o status por aqui: ${window.location.origin}/?order=${order.id}`
+    );
+    window.open(`https://wa.me/${formatWhatsAppNumber(order.customerPhone)}?text=${message}`, '_blank');
+  };
+
   if (order.status === 'cancelled') return null;
 
   return (
@@ -162,17 +175,21 @@ export function OrderCard({ order }: OrderCardProps) {
       <div className="bg-card rounded-lg border border-border p-4 space-y-3 overflow-hidden">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold">#{order.number}</span>
+            <span className="text-lg font-bold">#{order.number || '---'}</span>
             <Badge 
               variant="secondary" 
-              className={`text-xs ${
+              onClick={order.customerPhone ? handleForwardToCustomer : undefined}
+              className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                 order.origin === 'online' ? 'bg-origin-online/10 text-origin-online' :
-                order.origin === 'counter' ? 'bg-origin-counter/10 text-origin-counter' :
+                order.origin === 'counter' || order.origin === 'counter_qr' ? 'bg-origin-counter/10 text-origin-counter' :
                 order.origin === 'table' ? 'bg-origin-table/10 text-origin-table' :
                 'bg-red-500/10 text-red-600 border-red-200'
               }`}
             >
-              {originLabels[order.origin]}
+              <div className="flex items-center gap-1">
+                {order.origin === 'online' && <MessageSquare className="w-3 h-3" />}
+                {originLabels[order.origin]}
+              </div>
             </Badge>
             <Badge 
               variant={order.paymentStatus === 'paid' ? 'default' : 'outline'}
@@ -250,16 +267,31 @@ export function OrderCard({ order }: OrderCardProps) {
                 </p>
               )}
               {item.observation && (
-                <p className="text-xs text-muted-foreground ml-4 italic">"{item.observation}"</p>
+                <div className="mt-2 bg-yellow-400 text-black px-3 py-1.5 rounded-md shadow-[0_2px_10px_rgba(250,204,21,0.4)] animate-pulse border-2 border-black/10">
+                  <p className="text-[11px] font-[900] uppercase tracking-tighter flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    ATENÇÃO: {item.observation}
+                  </p>
+                </div>
               )}
             </div>
           ))}
         </div>
 
         {(order.generalObservation || order.internalObservation) && (
-          <div className="text-xs text-muted-foreground space-y-1">
-            {order.generalObservation && <p>📝 {order.generalObservation}</p>}
-            {order.internalObservation && <p>🔒 {order.internalObservation}</p>}
+          <div className="space-y-1 mt-2">
+            {order.generalObservation && (
+              <div className="bg-orange-500 text-white p-2 rounded-lg text-[11px] font-black uppercase flex items-center gap-2 shadow-md">
+                <MessageSquare className="w-3.5 h-3.5" />
+                OBS GERAL: {order.generalObservation}
+              </div>
+            )}
+            {order.internalObservation && (
+              <div className="bg-zinc-800 text-white p-2 rounded-lg text-[11px] font-black uppercase flex items-center gap-2 border border-zinc-700">
+                <Lock className="w-3.5 h-3.5" />
+                INTERNO: {order.internalObservation}
+              </div>
+            )}
           </div>
         )}
 
@@ -312,6 +344,18 @@ export function OrderCard({ order }: OrderCardProps) {
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                 >
                   <X className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              {order.status === 'received' && order.customerPhone && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleConfirmOrder} 
+                  className="h-8 gap-1 border-primary/30 text-primary hover:bg-primary/10 flex-1"
+                  title="Confirmar recebimento via WhatsApp"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Confirmar
                 </Button>
               )}
               {order.customerPhone && (

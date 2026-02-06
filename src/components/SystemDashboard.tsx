@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Store, Clock, MapPin, DollarSign, Wallet, CreditCard, Banknote, Lock, Plus, Settings2, Map, QrCode } from 'lucide-react';
+import { Store, Clock, DollarSign, Wallet, CreditCard, Banknote, Lock, Settings2, Map, QrCode } from 'lucide-react';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 import { formatPrice } from '@/utils/format';
 import { useState, useEffect } from 'react';
 import { CashierModule } from './CashierModule';
 import { NeighborhoodManager } from './NeighborhoodManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from "sonner";
 
 export function SystemDashboard() {
   const { settings, updateSettings, orders, userRole } = useOrders();
@@ -40,6 +41,10 @@ export function SystemDashboard() {
 
   const handleSaveSettings = () => {
     updateSettings(localSettings);
+    toast.success("Configurações salvas com sucesso!", {
+      description: "As alterações já estão valendo para a loja.",
+      duration: 3000,
+    });
   };
 
   return (

@@ -8,10 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { PickupType, PaymentMethod } from '@/types/order';
-import { MessageSquare } from 'lucide-react';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 import { formatPrice } from '@/utils/format';
 
@@ -72,22 +71,19 @@ export function Cart() {
   const generateTimeSlots = () => {
     const slots: string[] = [];
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    const minAdvance = 30; // 30 min minimum
+    const startTime = new Date(now.getTime() + minAdvance * 60000);
     
-    const minAdvance = 30; // Minimum 30 min for scheduled orders
-    const minTime = new Date(now.getTime() + minAdvance * 60000);
-
-    for (let hour = 11; hour <= 23; hour++) {
-      for (let minute = 0; minute < 60; minute += settings.schedulingInterval) {
-        const slotDate = new Date();
-        slotDate.setHours(hour, minute, 0, 0);
-
-        if (slotDate > minTime) {
-          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          slots.push(timeStr);
-        }
+    // Generate slots for today and early tomorrow (up to 24h ahead)
+    for (let i = 0; i < 96; i++) { // 15-min intervals for 24h
+      const slot = new Date();
+      slot.setMinutes(Math.ceil(now.getMinutes() / 15) * 15 + (i * 15), 0, 0);
+      
+      if (slot > startTime) {
+        const timeStr = `${slot.getHours().toString().padStart(2, '0')}:${slot.getMinutes().toString().padStart(2, '0')}`;
+        if (!slots.includes(timeStr)) slots.push(timeStr);
       }
+      if (slots.length >= 20) break; // Limit to next 20 available slots
     }
     return slots;
   };

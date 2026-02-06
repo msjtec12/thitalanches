@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { OrderStatus } from '@/types/order';
 
+import { formatPrice } from '@/utils/format';
+
 const statusSteps: { status: OrderStatus; label: string; icon: any }[] = [
   { status: 'received', label: 'Recebido', icon: Check },
   { status: 'preparing', label: 'Preparando', icon: Clock },
@@ -96,7 +98,7 @@ export function OrderTracking() {
               </div>
               <div className="border-t border-border pt-2 flex justify-between font-bold">
                 <span>Total</span>
-                <span className="text-primary">{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                <span className="text-primary">{formatPrice(order.total)}</span>
               </div>
             </div>
 
