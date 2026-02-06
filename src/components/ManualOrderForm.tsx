@@ -34,6 +34,7 @@ export function ManualOrderForm() {
   const [internalObservation, setInternalObservation] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | 'cash'>('pix');
+  const [changeAmount, setChangeAmount] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [createdOrder, setCreatedOrder] = useState<any>(null);
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -140,11 +141,13 @@ export function ManualOrderForm() {
         estimatedTime: 20 + Math.ceil(selectedNeighborhood.estimatedDistanceKm * 5),
       } : undefined,
       items,
-      generalObservation: '',
+      generalObservation: (paymentMethod === 'cash' && changeAmount) 
+        ? `Troco para: R$ ${changeAmount}` 
+        : '',
       internalObservation: internalObservation || undefined,
       status: 'received',
       paymentStatus,
-      paymentMethod: paymentStatus === 'paid' ? paymentMethod : undefined,
+      paymentMethod: (paymentStatus === 'paid' || pickupType === 'delivery') ? paymentMethod : undefined,
       total: grandTotal,
     });
     setCreatedOrder(newOrder);
@@ -486,9 +489,9 @@ export function ManualOrderForm() {
               </RadioGroup>
             </div>
 
-            {paymentStatus === 'paid' && (
+            {(paymentStatus === 'paid' || pickupType === 'delivery') && (
               <div className="space-y-3">
-                <Label>Forma de pagamento</Label>
+                <Label>Forma de pagamento {paymentStatus === 'pending' ? '(Prevista)' : ''}</Label>
                 <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)} className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="pix" id="meth-pix" />
@@ -507,6 +510,27 @@ export function ManualOrderForm() {
                     <Label htmlFor="meth-debit">Cartão de Débito</Label>
                   </div>
                 </RadioGroup>
+
+                {paymentMethod === 'cash' && (
+                  <div className="mt-2 space-y-2 p-3 bg-secondary/30 rounded-lg border border-border/50">
+                    <Label htmlFor="change">Precisa de troco para quanto?</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">R$</span>
+                      <Input
+                        id="change"
+                        placeholder="0,00"
+                        className="pl-10"
+                        value={changeAmount}
+                        onChange={(e) => setChangeAmount(e.target.value)}
+                      />
+                    </div>
+                    {changeAmount && (
+                      <p className="text-xs text-muted-foreground">
+                        Troco a devolver: <b>{formatPrice(Math.max(0, parseFloat(changeAmount.replace(',', '.')) - grandTotal))}</b>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

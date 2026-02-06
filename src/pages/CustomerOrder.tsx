@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOrders } from '@/contexts/OrderContext';
 import { StoreHeader } from '@/components/StoreHeader';
@@ -10,7 +10,14 @@ import { OrderTracking } from '@/components/OrderTracking';
 export default function CustomerOrder() {
   const { products, categories } = useOrders();
   const [searchParams] = useSearchParams();
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '');
+  const [activeCategory, setActiveCategory] = useState('');
+
+  useEffect(() => {
+    if (categories.length > 0 && !activeCategory) {
+      const snacks = categories.find(c => c.name.toLowerCase().includes('lanche'));
+      setActiveCategory(snacks ? snacks.id : categories[0].id);
+    }
+  }, [categories, activeCategory]);
 
   const activeProducts = products.filter(p => p.isActive);
 
@@ -23,36 +30,6 @@ export default function CustomerOrder() {
         onCategoryChange={setActiveCategory} 
       />
       <main className="container md:pr-96">
-        <div className="my-6 p-6 rounded-2xl bg-zinc-950 border border-primary/20 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
-            <img 
-              src="/logo.png" 
-              alt="Logo" 
-              className="h-20 w-20 md:h-24 md:w-24 object-contain rounded-full border-2 border-primary/40 bg-white/5 p-1 shadow-2xl"
-            />
-            <div className="text-center md:text-left">
-              <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none mb-2">
-                BEM-VINDO AO <span className="text-primary">THITA LANCHES</span>
-              </h2>
-              <p className="text-zinc-400 text-sm font-medium">
-                Os melhores lanches e dogs de Ribeirão Preto. 
-                Qualidade e sabor que você conhece desde 2015.
-              </p>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-wider">
-                  🌭 Hot Dogs
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-wider">
-                  🍔 Burgers
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-wider">
-                  🍟 Porções
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
         <ProductList 
           products={activeProducts} 
           categories={categories}

@@ -262,9 +262,13 @@ export function OrderCard({ order }: OrderCardProps) {
                 </span>
               </div>
               {item.selectedExtras.length > 0 && (
-                <p className="text-xs text-muted-foreground ml-4">
-                  + {item.selectedExtras.map(e => e.name).join(', ')}
-                </p>
+                <div className="ml-4 mt-1 flex flex-wrap gap-1">
+                  {item.selectedExtras.map(e => (
+                    <span key={e.id} className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                      + {e.name}
+                    </span>
+                  ))}
+                </div>
               )}
               {item.observation && (
                 <div className="mt-2 bg-yellow-400 text-black px-3 py-1.5 rounded-md shadow-[0_2px_10px_rgba(250,204,21,0.4)] animate-pulse border-2 border-black/10">

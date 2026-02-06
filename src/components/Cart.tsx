@@ -33,6 +33,7 @@ export function Cart() {
   });
   const [generalObservation, setGeneralObservation] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
+  const [changeAmount, setChangeAmount] = useState('');
   const [lastOrderUrl, setLastOrderUrl] = useState<string>('');
   const [customerWhatsAppUrl, setCustomerWhatsAppUrl] = useState<string>('');
 
@@ -100,6 +101,10 @@ export function Cart() {
       ? urlOrigin 
       : 'online';
 
+    const changeNote = (paymentMethod === 'cash' && changeAmount) 
+      ? ` | Troco para: R$ ${changeAmount}` 
+      : '';
+
     const newOrder = await addOrder({
       origin: orderOrigin as any,
       pickupType,
@@ -114,7 +119,7 @@ export function Cart() {
       items,
       paymentMethod,
       paymentStatus: 'pending',
-      generalObservation,
+      generalObservation: generalObservation + changeNote,
       status: 'received',
       total: grandTotal,
     });
@@ -161,7 +166,7 @@ export function Cart() {
         `👤 *CLIENTE:* ${customerName.toUpperCase()}\n` +
         `📞 *FONE:* ${customerPhone || 'Não informado'}\n` +
         `${locationText}\n` +
-        `💰 *PAGAMENTO:* ${paymentTexts[paymentMethod]}\n` +
+        `💰 *PAGAMENTO:* ${paymentTexts[paymentMethod]}${paymentMethod === 'cash' && changeAmount ? ` (Troco para R$ ${changeAmount})` : ''}\n` +
         pixNote +
         `\n🛒 *ITENS DO PEDIDO:*\n${itemsText}\n\n` +
         (generalObservation ? `📝 *OBSERVAÇÃO:* ${generalObservation}\n\n` : '') +
@@ -538,6 +543,31 @@ export function Cart() {
                   </div>
                 </div>
               </RadioGroup>
+
+              {paymentMethod === 'cash' && (
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-2 border border-border/50">
+                  <Label htmlFor="checkout-change" className="text-sm font-medium">Troco para quanto?</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
+                    <Input
+                      id="checkout-change"
+                      placeholder="0,00"
+                      className="pl-10 h-10 bg-background"
+                      value={changeAmount}
+                      onChange={(e) => setChangeAmount(e.target.value)}
+                    />
+                  </div>
+                  {changeAmount && (
+                    <div className="flex justify-between items-center text-xs pt-1">
+                      <span className="text-muted-foreground">Troco a receber:</span>
+                      <span className="font-bold text-primary">
+                        {formatPrice(Math.max(0, parseFloat(changeAmount.replace(',', '.')) - grandTotal))}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">Deixe em branco se não precisar de troco.</p>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-border pt-4 space-y-3">
