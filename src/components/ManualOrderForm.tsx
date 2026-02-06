@@ -129,8 +129,8 @@ export function ManualOrderForm() {
   };
 
 
-  const handleSubmit = () => {
-    addOrder({
+  const handleSubmit = async () => {
+    await addOrder({
       origin,
       pickupType,
       scheduledTime: pickupType === 'scheduled' ? scheduledTime : undefined,

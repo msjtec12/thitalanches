@@ -31,7 +31,7 @@ export interface CartItem {
   observation: string;
 }
 
-export type OrderOrigin = 'online' | 'counter' | 'table' | 'ifood';
+export type OrderOrigin = 'online' | 'counter' | 'table' | 'ifood' | 'counter_qr';
 export type PickupType = 'immediate' | 'scheduled' | 'delivery';
 export type OrderStatus = 'received' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 export type PaymentMethod = 'pix' | 'card' | 'credit_card' | 'debit_card' | 'cash';

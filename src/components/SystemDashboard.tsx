@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Store, Clock, MapPin, DollarSign, Wallet, CreditCard, Banknote, Lock, Plus, Settings2, Map } from 'lucide-react';
+import { Store, Clock, MapPin, DollarSign, Wallet, CreditCard, Banknote, Lock, Plus, Settings2, Map, QrCode } from 'lucide-react';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 import { formatPrice } from '@/utils/format';
 import { useState, useEffect } from 'react';
@@ -60,7 +60,13 @@ export function SystemDashboard() {
             {userRole === 'admin' && (
               <TabsTrigger value="config" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
                 <Settings2 className="w-3.5 h-3.5" />
-                Configuração
+                Geral
+              </TabsTrigger>
+            )}
+            {userRole === 'admin' && (
+              <TabsTrigger value="qrcodes" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                <QrCode className="w-3.5 h-3.5" />
+                QR Codes
               </TabsTrigger>
             )}
           </TabsList>
@@ -213,6 +219,61 @@ export function SystemDashboard() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="qrcodes" className="mt-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-border shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-primary" />
+                  QR Code para Balcão
+                </CardTitle>
+                <CardDescription>Para clientes fazerem o pedido direto do celular ao chegar.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-6 py-10 text-center">
+                <div className="bg-white p-4 rounded-3xl border border-zinc-200 shadow-xl">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + '?origin=counter_qr')}`} 
+                    alt="QR Counter"
+                    className="w-48 h-48"
+                  />
+                </div>
+                <div className="space-y-2 max-w-full">
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">URL do Balcão:</p>
+                  <p className="text-[10px] break-all text-zinc-400 font-mono bg-zinc-100 p-2 rounded-lg">{window.location.origin}?origin=counter_qr</p>
+                </div>
+                <Button variant="outline" className="w-full gap-2 font-bold" onClick={() => window.print()}>
+                  Imprimir QR Code
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-primary" />
+                  QR Code para Mesas
+                </CardTitle>
+                <CardDescription>Pedidos com auto-atendimento direto na mesa.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center gap-6 py-10 opacity-70">
+                <div className="bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm opacity-40">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + '?origin=table')}`} 
+                    alt="QR Table"
+                    className="w-48 h-48 grayscale"
+                  />
+                </div>
+                <p className="text-[10px] font-bold text-primary uppercase text-center bg-primary/10 px-4 py-2 rounded-full">
+                  Recurso Premium: Pedidos por Mesa
+                </p>
+                <Button disabled className="w-full gap-2 font-bold opacity-50">
+                  Configurar Mesas
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

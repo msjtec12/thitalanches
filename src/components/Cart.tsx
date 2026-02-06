@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { formatPrice } from '@/utils/format';
 export function Cart() {
   const { items, removeItem, total, itemCount, clearCart } = useCart();
   const { addOrder, settings } = useOrders();
+  const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
   const [customerName, setCustomerName] = useState('');
@@ -96,9 +98,14 @@ export function Cart() {
     }
   };
 
-  const handleConfirmOrder = () => {
-    const newOrder = addOrder({
-      origin: 'online',
+  const handleConfirmOrder = async () => {
+    const urlOrigin = searchParams.get('origin');
+    const orderOrigin = (urlOrigin === 'counter' || urlOrigin === 'counter_qr' || urlOrigin === 'table') 
+      ? urlOrigin 
+      : 'online';
+
+    const newOrder = await addOrder({
+      origin: orderOrigin as any,
       pickupType,
       scheduledTime: pickupType === 'scheduled' ? scheduledTime : undefined,
       customerName,

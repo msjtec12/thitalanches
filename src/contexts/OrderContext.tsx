@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Order, OrderStatus, Product, StoreSettings, Category, CashierLog } from '@/types/order';
 import { initialOrders, products as initialProducts, storeSettings as initialSettings, categories as initialCategories } from '@/data/mockData';
+import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 interface OrderContextType {
   orders: Order[];
   products: Product[];
   categories: Category[];
   settings: StoreSettings;
-  addOrder: (order: Omit<Order, 'id' | 'number' | 'createdAt'>) => Order;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  addOrder: (order: Omit<Order, 'id' | 'number' | 'createdAt'>) => Promise<Order>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updatePaymentStatus: (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => void;
   updateScheduledTime: (orderId: string, time: string) => void;
   cancelOrder: (orderId: string) => void;
@@ -29,109 +31,62 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  // Load from localStorage on init
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('speedy_orders');
-    return saved ? JSON.parse(saved).map((o: any) => ({ ...o, createdAt: new Date(o.createdAt) })) : initialOrders;
-  });
-  
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('speedy_products');
-    return saved ? JSON.parse(saved) : initialProducts;
-  });
-  
-  const [settings, setSettings] = useState<StoreSettings>(() => {
-    const saved = localStorage.getItem('speedy_settings');
-    try {
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          // Merge neighborhoods: if parsed has neighborhoods, only use them if they are not empty
-          // Otherwise use initialSettings.neighborhoods (the big list from spreadsheet)
-          const mergedNeighborhoods = (parsed.neighborhoods && parsed.neighborhoods.length > 0) 
-            ? parsed.neighborhoods 
-            : initialSettings.neighborhoods;
-            
-          return { 
-            ...initialSettings, 
-            ...parsed,
-            neighborhoods: mergedNeighborhoods 
-          };
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing settings:', e);
-    }
-    return initialSettings;
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [settings, setSettings] = useState<StoreSettings>(initialSettings);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [cashierLogs, setCashierLogs] = useState<CashierLog[]>([]);
+  const [userRole, setUserRole] = useState<'admin' | 'employee'>('admin');
+  const [orderCounter, setOrderCounter] = useState(1);
 
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem('speedy_categories');
-    return saved ? JSON.parse(saved) : initialCategories;
-  });
-
-  const [cashierLogs, setCashierLogs] = useState<CashierLog[]>(() => {
-    const saved = localStorage.getItem('speedy_cashier_logs');
-    return saved ? JSON.parse(saved).map((l: any) => ({ ...l, timestamp: new Date(l.timestamp) })) : [];
-  });
-
-  const [userRole, setUserRole] = useState<'admin' | 'employee'>(() => {
-    const saved = localStorage.getItem('speedy_user_role');
-    return (saved as 'admin' | 'employee') || 'admin';
-  });
-
-  const [orderCounter, setOrderCounter] = useState(() => {
-    const saved = localStorage.getItem('speedy_order_counter');
-    return saved ? Number(saved) : initialOrders.length + 1;
-  });
-
-  // Save to localStorage when state changes
+  // Load from Supabase on init
   useEffect(() => {
-    localStorage.setItem('speedy_orders', JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem('speedy_products', JSON.stringify(products));
-  }, [products]);
-  useEffect(() => {
-    localStorage.setItem('speedy_categories', JSON.stringify(categories));
-  }, [categories]);
-  useEffect(() => {
-    localStorage.setItem('speedy_settings', JSON.stringify(settings));
-  }, [settings]);
-
-  useEffect(() => {
-    localStorage.setItem('speedy_cashier_logs', JSON.stringify(cashierLogs));
-  }, [cashierLogs]);
-
-  useEffect(() => {
-    localStorage.setItem('speedy_user_role', userRole);
-  }, [userRole]);
-
-  useEffect(() => {
-    localStorage.setItem('speedy_order_counter', orderCounter.toString());
-  }, [orderCounter]);
-
-  const getNextOrderNumber = () => orderCounter;
-
-  const addOrder = (orderData: Omit<Order, 'id' | 'number' | 'createdAt'>) => {
-    const newOrder: Order = {
-      ...orderData,
-      id: `order-${Date.now()}`,
-      number: orderCounter,
-      createdAt: new Date(),
+    const fetchData = async () => {
+      const dbSettings = await db.getSettings();
+      if (dbSettings) setSettings(dbSettings);
+      
+      const dbProducts = await db.getProducts();
+      if (dbProducts.length > 0) setProducts(dbProducts);
+      
+      const dbCategories = await db.getCategories();
+      if (dbCategories.length > 0) setCategories(dbCategories);
+      
+      const dbOrders = await db.getOrders();
+      if (dbOrders.length > 0) setOrders(dbOrders);
     };
-    setOrders(prev => [newOrder, ...prev]);
-    setOrderCounter(prev => prev + 1);
-    return newOrder;
+
+    fetchData();
+
+    // Listen for real-time order updates
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const addOrder = async (orderData: Omit<Order, 'id' | 'number' | 'createdAt'>) => {
+    try {
+      const newOrder = await db.createOrder(orderData);
+      setOrders(prev => [newOrder, ...prev]);
+      return newOrder;
+    } catch (err) {
+      console.error("Error adding order:", err);
+      // Fallback local for UX
+      const localOrder: Order = { ...orderData, id: `temp-${Date.now()}`, number: orders.length + 1, createdAt: new Date() };
+      setOrders(prev => [localOrder, ...prev]);
+      return localOrder;
+    }
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setOrders(prev =>
-      prev.map(order =>
-        order.id === orderId ? { ...order, status } : order
-      )
-    );
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    await db.updateOrderStatus(orderId, status);
   };
 
   const updatePaymentStatus = (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => {
@@ -153,6 +108,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const cancelOrder = (orderId: string) => {
     updateOrderStatus(orderId, 'cancelled');
   };
+
+  const getNextOrderNumber = () => orders.length + 1;
 
   const updateProduct = (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -185,8 +142,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setProducts(prev => prev.filter(p => p.id !== productId));
   };
 
-  const updateSettings = (newSettings: StoreSettings) => {
+  const updateSettings = async (newSettings: StoreSettings) => {
     setSettings(newSettings);
+    await db.updateSettings(newSettings);
   };
 
   const markOrderAsPrinted = (orderId: string) => {
