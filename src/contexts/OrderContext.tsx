@@ -13,8 +13,8 @@ interface OrderContextType {
   updatePaymentStatus: (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => void;
   updateScheduledTime: (orderId: string, time: string) => void;
   cancelOrder: (orderId: string) => void;
-  updateProduct: (product: Product) => void;
-  deleteProduct: (productId: string) => void;
+  updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   updateSettings: (settings: StoreSettings) => void;
   markOrderAsPrinted: (orderId: string) => void;
   addCategory: (category: Category) => void;
@@ -128,8 +128,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
 
-  const updateProduct = (updatedProduct: Product) => {
+  const updateProduct = async (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    await db.updateProduct(updatedProduct);
     
     // Reflect price change in open orders
     setOrders(prevOrders => prevOrders.map(order => {
@@ -155,8 +156,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const deleteProduct = (productId: string) => {
+  const deleteProduct = async (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
+    await db.deleteProduct(productId);
   };
 
   const updateSettings = async (newSettings: StoreSettings) => {

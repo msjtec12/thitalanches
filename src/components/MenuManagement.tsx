@@ -4,6 +4,7 @@ import { Product, ProductExtra } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -221,6 +222,47 @@ export function MenuManagement() {
                         className="bg-background border-primary/20 h-9 font-bold"
                       />
                     </div>
+                  </div>
+
+                  {/* Combo Management */}
+                  <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-primary">Combo / Oferta</Label>
+                        <p className="text-[10px] text-muted-foreground">O produto inclui outros itens do cardápio.</p>
+                      </div>
+                      <Switch 
+                        checked={editingProduct.isCombo} 
+                        onCheckedChange={(val) => setEditingProduct({...editingProduct, isCombo: val})}
+                      />
+                    </div>
+
+                    {editingProduct.isCombo && (
+                      <div className="space-y-2">
+                         <Label className="text-[10px] font-bold uppercase text-muted-foreground">Itens Inclusos</Label>
+                         <div className="flex flex-wrap gap-2">
+                           {products.filter(p => !p.isCombo && p.id !== editingProduct.id).map(p => {
+                             const isSelected = editingProduct.comboItems?.includes(p.id);
+                             return (
+                               <Badge 
+                                 key={p.id}
+                                 variant={isSelected ? 'default' : 'outline'}
+                                 className="cursor-pointer"
+                                 onClick={() => {
+                                   const current = editingProduct.comboItems || [];
+                                   const next = isSelected 
+                                     ? current.filter(id => id !== p.id)
+                                     : [...current, p.id];
+                                   setEditingProduct({...editingProduct, comboItems: next});
+                                 }}
+                               >
+                                 {p.name}
+                               </Badge>
+                             );
+                           })}
+                         </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Image Placeholder */}

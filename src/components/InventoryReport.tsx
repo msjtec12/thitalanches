@@ -186,14 +186,14 @@ export function InventoryReport() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-primary/5 border-primary/10">
           <CardContent className="pt-4 flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-xl">
               <Package className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Total de Itens Vendidos</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Itens Vendidos</p>
               <p className="text-2xl font-black">{statsList.reduce((sum, p) => sum + p.qty, 0)}</p>
             </div>
           </CardContent>
@@ -205,8 +205,22 @@ export function InventoryReport() {
               <TrendingUp className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Produto Mais Vendido</p>
-              <p className="text-lg font-black truncate max-w-[150px]">{statsList[0]?.name || '-'}</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Faturamento</p>
+              <p className="text-xl font-black">{formatPrice(statsList.reduce((sum, p) => sum + p.total, 0) + extrasList.reduce((sum, e) => sum + e.total, 0))}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-blue-500/5 border-blue-500/10">
+          <CardContent className="pt-4 flex items-center gap-4">
+            <div className="p-3 bg-blue-500/10 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Lucro Bruto</p>
+              <p className="text-xl font-black text-blue-700">
+                {formatPrice(statsList.reduce((sum, p) => sum + (p.total - (p.cost * p.qty)), 0) + (extrasList.reduce((sum, e) => sum + e.total, 0) * 0.7))}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -214,11 +228,15 @@ export function InventoryReport() {
         <Card className="bg-amber-500/5 border-amber-500/10">
           <CardContent className="pt-4 flex items-center gap-4">
             <div className="p-3 bg-amber-500/10 rounded-xl">
-              <Plus className="w-5 h-5 text-amber-600" />
+              <TrendingUp className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Total em Adicionais</p>
-              <p className="text-2xl font-black">{formatPrice(extrasList.reduce((sum, e) => sum + e.total, 0))}</p>
+              <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Margem Média</p>
+              <p className="text-2xl font-black">
+                {statsList.length > 0 
+                  ? `${Math.round((statsList.reduce((sum, p) => sum + ((p.total - (p.cost * p.qty)) / p.total), 0) / statsList.length) * 100)}%`
+                  : '0%'}
+              </p>
             </div>
           </CardContent>
         </Card>

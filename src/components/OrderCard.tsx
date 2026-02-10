@@ -3,7 +3,7 @@ import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle } from 'lucide-react';
+import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -64,6 +64,10 @@ export function OrderCard({ order }: OrderCardProps) {
     const nextStatus = statusConfig[order.status].next;
     if (nextStatus) {
       updateOrderStatus(order.id, nextStatus);
+      // Auto-print when accepting/receiving (if not printed yet)
+      if (nextStatus === 'preparing' && !order.isPrinted) {
+        handlePrint();
+      }
     }
   };
 

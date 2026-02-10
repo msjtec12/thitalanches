@@ -108,6 +108,8 @@ export const db = {
       isActive: p.is_active,
       categoryId: p.category_id,
       image: p.image_url,
+      isCombo: p.is_combo,
+      comboItems: p.combo_items || [],
       extras: p.product_extras.map((e: any) => ({
         id: e.id,
         name: e.name,
@@ -115,6 +117,45 @@ export const db = {
         isActive: e.is_active
       }))
     }));
+  },
+
+  async updateProduct(product: Product) {
+    // 1. Update main product
+    const { error: pError } = await supabase
+      .from('products')
+      .upsert({
+        id: product.id.startsWith('prod-') ? undefined : product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        cost_price: product.costPrice,
+        category_id: product.categoryId,
+        is_active: product.isActive,
+        image_url: product.image,
+        is_combo: product.isCombo,
+        combo_items: product.comboItems
+      })
+      .select()
+      .single();
+
+    if (pError) throw pError;
+
+    // 2. Handle extras (this is simplified, ideally you'd sync them properly)
+    if (product.extras) {
+      for (const extra of product.extras) {
+        await supabase.from('product_extras').upsert({
+          id: extra.id.startsWith('extra-') ? undefined : extra.id,
+          product_id: product.id,
+          name: extra.name,
+          price: extra.price,
+          is_active: extra.isActive
+        });
+      }
+    }
+  },
+
+  async deleteProduct(productId: string) {
+    await supabase.from('products').delete().eq('id', productId);
   },
 
   // Orders
