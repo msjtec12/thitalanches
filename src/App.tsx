@@ -8,6 +8,7 @@ import { OrderProvider } from "@/contexts/OrderContext";
 import CustomerOrder from "./pages/CustomerOrder";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import { BrandingProvider } from "@/components/BrandingProvider";
 
 const queryClient = new QueryClient();
 
@@ -16,15 +17,17 @@ const App = () => (
     <TooltipProvider>
       <OrderProvider>
         <CartProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<CustomerOrder />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <BrandingProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<CustomerOrder />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </BrandingProvider>
         </CartProvider>
       </OrderProvider>
     </TooltipProvider>

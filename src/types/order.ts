@@ -94,6 +94,12 @@ export interface StoreSettings {
   schedulingInterval: number; // in minutes
   adminPin?: string;
   isStreetValidationEnabled?: boolean;
+  // Branding
+  logoUrl?: string;
+  primaryColor?: string; // Hex color
+  primaryColorHover?: string;
+  // Notifications
+  isSoundEnabled?: boolean;
 }
 
 export interface CashierLog {

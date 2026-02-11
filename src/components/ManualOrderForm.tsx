@@ -166,6 +166,26 @@ export function ManualOrderForm() {
     setStep('products');
   };
 
+  // Customer historical lookup
+  useEffect(() => {
+    const cleanPhone = unmaskPhone(customerPhone);
+    if (cleanPhone.length >= 10 && orders.length > 0) {
+      const pastOrder = orders.find(o => o.customerPhone && unmaskPhone(o.customerPhone) === cleanPhone);
+      if (pastOrder) {
+        if (!customerName) setCustomerName(pastOrder.customerName);
+        if (pastOrder.deliveryInfo && !deliveryInfo.street) {
+          setDeliveryInfo({
+            neighborhoodId: pastOrder.deliveryInfo.neighborhoodId,
+            street: pastOrder.deliveryInfo.street,
+            number: pastOrder.deliveryInfo.number,
+            complement: pastOrder.deliveryInfo.complement || '',
+            reference: pastOrder.deliveryInfo.reference || '',
+          });
+        }
+      }
+    }
+  }, [customerPhone, orders]);
+
   const handleClose = () => {
     setIsOpen(false);
     resetForm();

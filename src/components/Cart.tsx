@@ -20,16 +20,19 @@ export function Cart() {
   const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState(() => localStorage.getItem('thita_customer_name') || '');
+  const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem('thita_customer_phone') || '');
   const [pickupType, setPickupType] = useState<PickupType>('immediate');
   const [scheduledTime, setScheduledTime] = useState('');
-  const [deliveryInfo, setDeliveryInfo] = useState({
-    neighborhoodId: '',
-    street: '',
-    number: '',
-    complement: '',
-    reference: '',
+  const [deliveryInfo, setDeliveryInfo] = useState(() => {
+    const saved = localStorage.getItem('thita_delivery_info');
+    return saved ? JSON.parse(saved) : {
+      neighborhoodId: '',
+      street: '',
+      number: '',
+      complement: '',
+      reference: '',
+    };
   });
   const [generalObservation, setGeneralObservation] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
@@ -199,6 +202,13 @@ export function Cart() {
       setCustomerWhatsAppUrl(customerUrl);
       
       window.open(customerUrl, '_blank');
+    }
+
+    // Save to history
+    localStorage.setItem('thita_customer_name', customerName);
+    localStorage.setItem('thita_customer_phone', customerPhone);
+    if (pickupType === 'delivery') {
+      localStorage.setItem('thita_delivery_info', JSON.stringify(deliveryInfo));
     }
 
     clearCart();

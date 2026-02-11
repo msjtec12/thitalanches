@@ -79,6 +79,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Notification sound effect
+  useEffect(() => {
+    if (orders.length > 0 && settings.isSoundEnabled && userRole === 'admin') {
+      const lastOrder = orders[0];
+      const isNew = (new Date().getTime() - new Date(lastOrder.createdAt).getTime()) < 10000; // Less than 10s old
+      
+      if (lastOrder.status === 'received' && isNew) {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(e => console.log("Sound blocked by browser:", e));
+      }
+    }
+  }, [orders, settings.isSoundEnabled, userRole]);
+
   const addOrder = async (orderData: Omit<Order, 'id' | 'number' | 'createdAt'>) => {
     try {
       const newOrder = await db.createOrder(orderData);

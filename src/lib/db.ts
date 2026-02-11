@@ -35,7 +35,11 @@ export const db = {
         deliveryFee: Number(n.delivery_fee) || 0,
         estimatedDistanceKm: Number(n.estimated_distance_km) || 0,
         allowedStreets: Array.isArray(n.allowed_streets) ? n.allowed_streets : []
-      }))
+      })),
+      logoUrl: data.logo_url,
+      primaryColor: data.primary_color,
+      primaryColorHover: data.primary_color_hover,
+      isSoundEnabled: data.is_sound_enabled
     };
   },
 
@@ -52,6 +56,10 @@ export const db = {
     if (rest.schedulingInterval !== undefined) updateData.scheduling_interval = Number(rest.schedulingInterval) || 0;
     if (rest.isStreetValidationEnabled !== undefined) updateData.is_street_validation_enabled = rest.isStreetValidationEnabled;
     if (rest.adminPin !== undefined) updateData.admin_pin = rest.adminPin;
+    if (rest.logoUrl !== undefined) updateData.logo_url = rest.logoUrl;
+    if (rest.primaryColor !== undefined) updateData.primary_color = rest.primaryColor;
+    if (rest.primaryColorHover !== undefined) updateData.primary_color_hover = rest.primaryColorHover;
+    if (rest.isSoundEnabled !== undefined) updateData.is_sound_enabled = rest.isSoundEnabled;
 
     const { error } = await supabase
       .from('store_settings')

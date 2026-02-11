@@ -208,6 +208,35 @@ export function SystemDashboard() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="logo">Logo da Loja (URL)</Label>
+                    <Input 
+                      id="logo" 
+                      placeholder="https://..."
+                      value={localSettings.logoUrl || ''} 
+                      onChange={(e) => setLocalSettings({...localSettings, logoUrl: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="color">Cor Principal</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="color" 
+                        type="color"
+                        className="w-12 p-1 h-10"
+                        value={localSettings.primaryColor || '#ef4444'} 
+                        onChange={(e) => setLocalSettings({...localSettings, primaryColor: e.target.value, primaryColorHover: e.target.value + 'dd'})}
+                      />
+                      <Input 
+                        value={localSettings.primaryColor || '#ef4444'} 
+                        onChange={(e) => setLocalSettings({...localSettings, primaryColor: e.target.value})}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg border border-border/50">
                   <div className="space-y-0.5">
                     <Label htmlFor="store-open">Loja Aberta (Site)</Label>
@@ -219,8 +248,20 @@ export function SystemDashboard() {
                     onCheckedChange={(checked) => setLocalSettings({...localSettings, isOpen: checked})}
                   />
                 </div>
+
+                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="sound-notif" className="text-primary font-bold">Alertas Sonoros</Label>
+                    <p className="text-[10px] text-muted-foreground">Tocar som quando chegar um novo pedido.</p>
+                  </div>
+                  <Switch 
+                    id="sound-notif"
+                    checked={localSettings.isSoundEnabled}
+                    onCheckedChange={(checked) => setLocalSettings({...localSettings, isSoundEnabled: checked})}
+                  />
+                </div>
                 
-                <Button onClick={handleSaveSettings} className="w-full mt-4 h-11 font-bold">Salvar Configurações</Button>
+                <Button onClick={handleSaveSettings} className="w-full mt-4 h-12 font-black uppercase tracking-widest shadow-lg shadow-primary/20">Salvar Alterações</Button>
               </CardContent>
             </Card>
           )}
