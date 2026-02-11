@@ -201,10 +201,11 @@ export function SystemDashboard() {
                       id="admin-pin" 
                       type="password"
                       maxLength={4}
-                      placeholder="1234"
-                      value={localSettings.adminPin} 
+                      placeholder="**** (Oculto por segurança)"
+                      value={localSettings.adminPin || ''} 
                       onChange={(e) => setLocalSettings({...localSettings, adminPin: e.target.value})}
                     />
+                    <p className="text-[10px] text-muted-foreground italic">Preencha apenas se desejar alterar o PIN.</p>
                   </div>
                 </div>
 

@@ -24,6 +24,7 @@ interface OrderContextType {
   addCashierLog: (log: Omit<CashierLog, 'id'>) => void;
   userRole: 'admin' | 'employee';
   setUserRole: (role: 'admin' | 'employee') => void;
+  refetchOrders: () => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -51,22 +52,66 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   // Load from Supabase on init
   useEffect(() => {
     const fetchData = async () => {
-      const dbSettings = await db.getSettings();
+      // 1. Fetch Public Data (Safe for everyone)
+      const [dbProducts, dbCategories, dbSettings] = await Promise.all([
+        db.getProducts(),
+        db.getCategories(),
+        db.getSettings()
+      ]);
+
+      if (dbProducts.length > 0) setProducts(dbProducts);
+      if (dbCategories.length > 0) setCategories(dbCategories);
       if (dbSettings) setSettings(dbSettings);
       
-      const dbProducts = await db.getProducts();
-      if (dbProducts.length > 0) setProducts(dbProducts);
-      
-      const dbCategories = await db.getCategories();
-      if (dbCategories.length > 0) setCategories(dbCategories);
-      
-      const dbOrders = await db.getOrders();
-      if (dbOrders.length > 0) setOrders(dbOrders);
+      // 2. Conditional data fetch based on role
+      const isAdmin = sessionStorage.getItem('admin_authenticated') === 'true';
+      if (isAdmin) {
+        setUserRole('admin');
+        const dbOrders = await db.getOrders();
+        setOrders(dbOrders);
+      } else {
+        // For customers, check if they are tracking a specific order
+        const params = new URLSearchParams(window.location.search);
+        const trackingId = params.get('order');
+        if (trackingId) {
+          const { data: trackerOrder } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', trackingId)
+            .single();
+          
+          if (trackerOrder) {
+            // Map the single order to the Order interface
+            const mapped: Order = {
+              id: trackerOrder.id,
+              number: trackerOrder.number,
+              origin: trackerOrder.origin,
+              pickupType: trackerOrder.pickup_type,
+              scheduledTime: trackerOrder.scheduled_time,
+              customerName: trackerOrder.customer_name,
+              customerPhone: trackerOrder.customer_phone,
+              tableNumber: trackerOrder.table_number,
+              deliveryInfo: trackerOrder.delivery_info,
+              items: trackerOrder.items,
+              generalObservation: trackerOrder.general_observation,
+              internalObservation: trackerOrder.internal_observation,
+              status: trackerOrder.status,
+              paymentMethod: trackerOrder.payment_method,
+              paymentStatus: trackerOrder.payment_status,
+              total: trackerOrder.total,
+              createdAt: new Date(trackerOrder.created_at),
+              isPrinted: trackerOrder.is_printed
+            };
+            setOrders([mapped]);
+          }
+        }
+      }
     };
 
     fetchData();
 
     // Listen for real-time order updates
+    // For normal users, we should ideally only listen for THEIR order
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -78,6 +123,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const refetchOrders = async () => {
+    const dbOrders = await db.getOrders();
+    setOrders(dbOrders);
+  };
 
   // Notification sound effect
   useEffect(() => {
@@ -232,7 +282,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       cashierLogs,
       addCashierLog,
       userRole,
-      setUserRole
+      setUserRole,
+      refetchOrders
     }}>
       {children}
     </OrderContext.Provider>

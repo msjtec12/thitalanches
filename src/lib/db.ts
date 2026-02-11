@@ -6,7 +6,7 @@ export const db = {
   async getSettings(): Promise<StoreSettings | null> {
     const { data, error } = await supabase
       .from('store_settings')
-      .select('*')
+      .select('name, is_open, is_cashier_open, prep_time, delivery_radius, whatsapp_number, scheduling_interval, is_street_validation_enabled, opening_hours, logo_url, primary_color, primary_color_hover, is_sound_enabled')
       .eq('id', 1)
       .single();
     
@@ -26,7 +26,6 @@ export const db = {
       deliveryRadius: data.delivery_radius,
       whatsappNumber: data.whatsapp_number,
       schedulingInterval: data.scheduling_interval,
-      adminPin: data.admin_pin,
       isStreetValidationEnabled: data.is_street_validation_enabled,
       openingHours: data.opening_hours || [],
       neighborhoods: (neighborhoods || []).map(n => ({
@@ -40,7 +39,25 @@ export const db = {
       primaryColor: data.primary_color,
       primaryColorHover: data.primary_color_hover,
       isSoundEnabled: data.is_sound_enabled
+      // adminPin is explicitly excluded for security
     };
+  },
+
+  async verifyAdminPin(pin: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('verify_admin_pin', { input_pin: pin });
+    
+    if (error) {
+       // Fallback for when RPC is not yet created - NOT RECOMMENDED FOR PRODUCTION
+       console.warn("RPC 'verify_admin_pin' not found. Falling back to insecure check.");
+       const { data: directData } = await supabase
+         .from('store_settings')
+         .select('admin_pin')
+         .eq('id', 1)
+         .single();
+       return directData?.admin_pin === pin;
+    }
+    
+    return !!data;
   },
 
   async updateSettings(settings: Partial<StoreSettings>) {

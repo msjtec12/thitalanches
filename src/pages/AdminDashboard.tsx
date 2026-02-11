@@ -43,11 +43,13 @@ export default function AdminDashboard() {
     }
   };
 
-  const verifyPin = () => {
-    if (pinInput === (settings.adminPin || '1234')) {
+  const verifyPin = async () => {
+    const isValid = await db.verifyAdminPin(pinInput);
+    if (isValid) {
       setUserRole('admin');
       setIsAuthenticated(true);
       sessionStorage.setItem('admin_authenticated', 'true');
+      await refetchOrders(); // Load all orders now that we are authenticated
       setIsPinModalOpen(false);
       setPinError(false);
     } else {
