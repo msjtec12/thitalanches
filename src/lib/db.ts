@@ -6,7 +6,7 @@ export const db = {
   async getSettings(): Promise<StoreSettings | null> {
     const { data, error } = await supabase
       .from('store_settings')
-      .select('name, is_open, is_cashier_open, prep_time, delivery_radius, whatsapp_number, scheduling_interval, is_street_validation_enabled, opening_hours, logo_url, primary_color, primary_color_hover, is_sound_enabled')
+      .select('*')
       .eq('id', 1)
       .single();
     
