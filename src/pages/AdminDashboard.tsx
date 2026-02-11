@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useOrders } from '@/contexts/OrderContext';
 import { ManualOrderForm } from '@/components/ManualOrderForm';
 import { KanbanBoard } from '@/components/KanbanBoard';
+import { db } from '@/lib/db';
 import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3 } from 'lucide-react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,7 +24,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function AdminDashboard() {
-  const { settings, userRole, setUserRole } = useOrders();
+  const { settings, userRole, setUserRole, refetchOrders } = useOrders();
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);

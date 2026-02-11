@@ -22,7 +22,7 @@ interface ManualCartItem {
 }
 
 export function ManualOrderForm() {
-  const { addOrder, products, categories, settings } = useOrders();
+  const { addOrder, products, categories, settings, orders } = useOrders();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'products' | 'details' | 'success'>('products');
   const [items, setItems] = useState<ManualCartItem[]>([]);
