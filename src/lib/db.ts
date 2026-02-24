@@ -112,6 +112,20 @@ export const db = {
     return error ? [] : data.map(c => ({ id: c.id, name: c.name, order: c.sort_order }));
   },
 
+  async createCategory(name: string, order: number): Promise<Category | null> {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{ name, sort_order: order }])
+      .select()
+      .single();
+    if (error) { console.error('Erro ao criar categoria:', error); return null; }
+    return { id: data.id, name: data.name, order: data.sort_order };
+  },
+
+  async deleteCategory(categoryId: string): Promise<void> {
+    await supabase.from('categories').delete().eq('id', categoryId);
+  },
+
   // Products
   async getProducts(): Promise<Product[]> {
     const { data, error } = await supabase

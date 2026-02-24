@@ -267,21 +267,29 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     );
     await db.markOrderAsPrinted(orderId);
   };
-  const addCategory = (category: Category) => {
-    setCategories(prev => [...prev, category]);
+  const addCategory = async (category: Category) => {
+    // Persiste no Supabase
+    const created = await db.createCategory(category.name, categories.length + 1);
+    if (created) {
+      setCategories(prev => [...prev, created]);
+    } else {
+      // Fallback local se falhar
+      setCategories(prev => [...prev, category]);
+    }
   };
 
   const updateCategory = (updatedCategory: Category) => {
     setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
   };
 
-  const deleteCategory = (categoryId: string) => {
+  const deleteCategory = async (categoryId: string) => {
     const isUsed = products.some(p => p.categoryId === categoryId);
     if (isUsed) {
       alert("Esta categoria está sendo usada por produtos e não pode ser excluída.");
       return;
     }
     setCategories(prev => prev.filter(c => c.id !== categoryId));
+    await db.deleteCategory(categoryId);
   };
 
   const addCashierLog = (logData: Omit<CashierLog, 'id'>) => {
