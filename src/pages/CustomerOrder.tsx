@@ -76,8 +76,13 @@ export default function CustomerOrder() {
                 <img
                   src="/logo.png"
                   alt="Thita Lanches"
-                  className="relative h-20 w-20 object-contain rounded-full border-2 border-amber-500/40 bg-black/40 p-0.5"
-                  style={{ filter: 'drop-shadow(0 0 10px rgba(212,168,83,0.3))' }}
+                  className="relative h-20 w-20 object-contain rounded-full border-2 border-amber-500/40 bg-black/40 p-0.5 transition-transform duration-500 hover:scale-110"
+                  style={{ 
+                    filter: 'drop-shadow(0 0 10px rgba(212,168,83,0.3))',
+                    transform: 'scale(1.5)' // Zoom para preencher o círculo
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.6)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.5)'; }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>

@@ -42,11 +42,11 @@ export function StoreHeader() {
                   style={{
                     width: '110px',
                     height: '110px',
-                    transform: 'scale(1.25)', // Zoom na imagem para tirar bordas vazias
+                    transform: 'scale(1.5)', // Zoom aumentado para preencher mais o círculo
                     transition: 'transform 0.5s ease',
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.35)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.25)'; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.6)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.5)'; }}
                   onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                 />
               </div>
