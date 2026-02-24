@@ -8,10 +8,11 @@ import { Cart } from '@/components/Cart';
 import { OrderTracking } from '@/components/OrderTracking';
 
 export default function CustomerOrder() {
-  const { products, categories } = useOrders();
+  const { products, categories, isLoadingData } = useOrders();
   const [searchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState('');
 
+  // Define a categoria ativa assim que as categorias carregarem
   useEffect(() => {
     if (categories.length > 0 && !activeCategory) {
       const snacks = categories.find(c => c.name.toLowerCase().includes('lanche'));
@@ -33,8 +34,9 @@ export default function CustomerOrder() {
         <ProductList 
           products={activeProducts} 
           categories={categories}
-          activeCategory={activeCategory} 
-          />
+          activeCategory={activeCategory}
+          isLoading={isLoadingData}
+        />
       </main>
       <Cart />
       <OrderTracking />

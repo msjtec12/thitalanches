@@ -8,6 +8,7 @@ interface OrderContextType {
   products: Product[];
   categories: Category[];
   settings: StoreSettings;
+  isLoadingData: boolean;
   addOrder: (order: Omit<Order, 'id' | 'number' | 'createdAt'>) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updatePaymentStatus: (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => void;
@@ -48,70 +49,99 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [cashierLogs, setCashierLogs] = useState<CashierLog[]>([]);
   const [userRole, setUserRole] = useState<'admin' | 'employee'>('employee');
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Utilitário: timeout para qualquer Promise
+  const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout após ${ms}ms`)), ms)
+    );
+    return Promise.race([promise, timeout]);
+  };
 
   // Load from Supabase on init
   useEffect(() => {
-    const fetchData = async () => {
-      // 1. Fetch Public Data (Safe for everyone)
-      const [dbProducts, dbCategories, dbSettings] = await Promise.all([
-        db.getProducts(),
-        db.getCategories(),
-        db.getSettings()
-      ]);
+    let attempt = 0;
 
-      if (dbProducts.length > 0) setProducts(dbProducts);
-      if (dbCategories.length > 0) setCategories(dbCategories);
-      if (dbSettings) setSettings(dbSettings);
-      
-      // 2. Conditional data fetch based on role
-      const isAdmin = sessionStorage.getItem('admin_authenticated') === 'true';
-      if (isAdmin) {
-        setUserRole('admin');
-        const dbOrders = await db.getOrders();
-        setOrders(dbOrders);
-      } else {
-        // For customers, check if they are tracking a specific order
-        const params = new URLSearchParams(window.location.search);
-        const trackingId = params.get('order');
-        if (trackingId) {
-          const { data: trackerOrder } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', trackingId)
-            .single();
-          
-          if (trackerOrder) {
-            // Map the single order to the Order interface
-            const mapped: Order = {
-              id: trackerOrder.id,
-              number: trackerOrder.number,
-              origin: trackerOrder.origin,
-              pickupType: trackerOrder.pickup_type,
-              scheduledTime: trackerOrder.scheduled_time,
-              customerName: trackerOrder.customer_name,
-              customerPhone: trackerOrder.customer_phone,
-              tableNumber: trackerOrder.table_number,
-              deliveryInfo: trackerOrder.delivery_info,
-              items: trackerOrder.items,
-              generalObservation: trackerOrder.general_observation,
-              internalObservation: trackerOrder.internal_observation,
-              status: trackerOrder.status,
-              paymentMethod: trackerOrder.payment_method,
-              paymentStatus: trackerOrder.payment_status,
-              total: trackerOrder.total,
-              createdAt: new Date(trackerOrder.created_at),
-              isPrinted: trackerOrder.is_printed
-            };
-            setOrders([mapped]);
+    const loadPublicData = () =>
+      withTimeout(
+        Promise.all([db.getProducts(), db.getCategories(), db.getSettings()]),
+        8000
+      );
+
+    const fetchData = async () => {
+      if (attempt === 0) setIsLoadingData(true);
+      try {
+        // 1. Fetch Public Data com timeout de 8s
+        const [dbProducts, dbCategories, dbSettings] = await loadPublicData();
+
+        setProducts(dbProducts);
+        setCategories(dbCategories);
+        if (dbSettings) setSettings(dbSettings);
+
+        // 2. Conditional data fetch based on role
+        const isAdmin = sessionStorage.getItem('admin_authenticated') === 'true';
+        if (isAdmin) {
+          setUserRole('admin');
+          const dbOrders = await db.getOrders();
+          setOrders(dbOrders);
+        } else {
+          // For customers, check if they are tracking a specific order
+          const params = new URLSearchParams(window.location.search);
+          const trackingId = params.get('order');
+          if (trackingId) {
+            const { data: trackerOrder } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('id', trackingId)
+              .single();
+            
+            if (trackerOrder) {
+              const mapped: Order = {
+                id: trackerOrder.id,
+                number: trackerOrder.number,
+                origin: trackerOrder.origin,
+                pickupType: trackerOrder.pickup_type,
+                scheduledTime: trackerOrder.scheduled_time,
+                customerName: trackerOrder.customer_name,
+                customerPhone: trackerOrder.customer_phone,
+                tableNumber: trackerOrder.table_number,
+                deliveryInfo: trackerOrder.delivery_info,
+                items: trackerOrder.items,
+                generalObservation: trackerOrder.general_observation,
+                internalObservation: trackerOrder.internal_observation,
+                status: trackerOrder.status,
+                paymentMethod: trackerOrder.payment_method,
+                paymentStatus: trackerOrder.payment_status,
+                total: trackerOrder.total,
+                createdAt: new Date(trackerOrder.created_at),
+                isPrinted: trackerOrder.is_printed
+              };
+              setOrders([mapped]);
+            }
           }
         }
+      } catch (err: any) {
+        if (attempt === 0) {
+          // Retry automático: 1 tentativa após 2s antes de desistir
+          attempt = 1;
+          console.warn('Erro ao carregar cardápio, tentando novamente em 2s...', err?.message);
+          setTimeout(fetchData, 2000);
+          return;
+        }
+        // Log estruturado para produção
+        console.error('Erro ao carregar cardápio:', {
+          message: err?.message,
+          stack: err?.stack,
+        });
+      } finally {
+        if (attempt !== 1) setIsLoadingData(false);
       }
     };
 
     fetchData();
 
     // Listen for real-time order updates
-    // For normal users, we should ideally only listen for THEIR order
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
@@ -267,6 +297,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       products,
       categories,
       settings,
+      isLoadingData,
       addOrder, 
       updateOrderStatus, 
       updatePaymentStatus,
