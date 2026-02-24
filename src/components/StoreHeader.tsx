@@ -48,7 +48,7 @@ export function StoreHeader() {
               <span
                 className="text-xl md:text-2xl text-white uppercase leading-none group-hover:text-amber-400 transition-colors duration-300"
                 style={{
-                  fontFamily: "'Cinzel Decorative', serif",
+                  fontFamily: "'Alfa Slab One', serif",
                   fontWeight: 900,
                   letterSpacing: '0.04em',
                   textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 30px rgba(0,0,0,0.5)',

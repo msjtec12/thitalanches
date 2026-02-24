@@ -81,7 +81,7 @@ export default function CustomerOrder() {
               <span
                 className="text-lg text-white uppercase leading-none"
                 style={{
-                  fontFamily: "'Cinzel Decorative', serif",
+                  fontFamily: "'Alfa Slab One', serif",
                   fontWeight: 900,
                   letterSpacing: '0.04em',
                   textShadow: '0 2px 16px rgba(0,0,0,0.9)',
