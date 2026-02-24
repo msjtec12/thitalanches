@@ -68,9 +68,9 @@ export default function CustomerOrder() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/20 pointer-events-none" />
 
-          <div className="container relative py-12 flex flex-col items-center gap-10 text-center">
+          <div className="container relative py-12 flex flex-col items-center gap-6 text-center">
             {/* Logo */}
-            <div className="flex flex-col items-center gap-8">
+            <div className="flex flex-col items-center gap-4">
               <div className="relative overflow-hidden rounded-full border-2 border-amber-500/60 bg-black/40 shadow-[0_0_20px_rgba(212,168,83,0.3)]">
                 <img
                   src="/logo.png"
@@ -79,7 +79,7 @@ export default function CustomerOrder() {
                   style={{ 
                     width: '110px',
                     height: '110px',
-                    transform: 'scale(1.75)', // Zoom igual ao header
+                    transform: 'scale(1.75)', // Mantém o zoom solicitado
                     transition: 'transform 0.5s ease',
                   }}
                   onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.85)'; }}
@@ -88,10 +88,10 @@ export default function CustomerOrder() {
                 />
               </div>
               
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-1.5">
                 <span
-                  className="text-sm md:text-base font-semibold italic text-white"
-                  style={{ textShadow: '0 1px 6px rgba(0,0,0,0.9)' }}
+                  className="text-sm md:text-lg font-bold italic text-white"
+                  style={{ textShadow: '0 2px 10px rgba(0,0,0,0.95)' }}
                 >
                   "O Lanche raíz de respeito!"
                 </span>
