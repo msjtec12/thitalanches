@@ -63,9 +63,24 @@ export function StoreHeader() {
                 "O Lanche raíz de respeito!"
               </span>
 
-              <span className="text-[9px] text-zinc-500 font-bold tracking-[0.18em] uppercase mt-0.5 hidden sm:block">
-                Since 2015 • Ribeirão Preto
-              </span>
+              {/* Endereço */}
+              <a
+                href="https://maps.google.com/?q=Rua+Magda+Perona+Frossard+565+Jardim+Nova+Alianca+Ribeirao+Preto"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 mt-0.5 group/addr hidden sm:flex"
+                onClick={e => e.stopPropagation()}
+              >
+                <svg className="w-2.5 h-2.5 flex-shrink-0" style={{ color: '#d4a853' }} fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
+                <span
+                  className="text-[9px] font-medium tracking-wide leading-none truncate max-w-[200px] group-hover/addr:underline transition-all"
+                  style={{ color: '#a08040', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+                >
+                  R. Magda Perona Frossard, 565 • Jd. Nova Aliança
+                </span>
+              </a>
             </div>
           </Link>
 
