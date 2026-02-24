@@ -79,10 +79,15 @@ export default function CustomerOrder() {
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
               <span
-                className="text-lg font-black italic tracking-tighter text-white uppercase leading-none"
-                style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}
+                className="text-lg text-white uppercase leading-none"
+                style={{
+                  fontFamily: "'Cinzel Decorative', serif",
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                  textShadow: '0 2px 16px rgba(0,0,0,0.9)',
+                }}
               >
-                THITA <span style={{ color: 'var(--primary)' }}>LANCHES</span>
+                Thita <span style={{ color: 'var(--primary)' }}>Lanches</span>
               </span>
               <span
                 className="text-[10px] font-semibold italic"

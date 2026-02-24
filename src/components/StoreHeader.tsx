@@ -46,10 +46,15 @@ export function StoreHeader() {
             {/* Textos */}
             <div className="flex flex-col gap-0.5">
               <span
-                className="text-xl md:text-2xl font-black italic tracking-tighter text-white uppercase leading-none group-hover:text-amber-400 transition-colors duration-300"
-                style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}
+                className="text-xl md:text-2xl text-white uppercase leading-none group-hover:text-amber-400 transition-colors duration-300"
+                style={{
+                  fontFamily: "'Cinzel Decorative', serif",
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                  textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 30px rgba(0,0,0,0.5)',
+                }}
               >
-                THITA <span className="text-primary">LANCHES</span>
+                Thita <span style={{ color: 'var(--primary)' }}>Lanches</span>
               </span>
 
               {/* Tagline */}
