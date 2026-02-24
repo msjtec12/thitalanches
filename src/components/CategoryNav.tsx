@@ -1,5 +1,5 @@
 import { Category } from '@/types/order';
-import { ChevronDown, ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Grid2X2 } from 'lucide-react';
 
 interface CategoryNavProps {
   categories: Category[];
@@ -39,9 +39,7 @@ const CATEGORY_IMAGES: Record<string, string> = {
 const FALLBACK = 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=400&h=300&fit=crop&q=80';
 
 function getCategoryImage(category: Category): string {
-  // Prioridade: foto customizada salva no banco
   if (category.photoUrl) return category.photoUrl;
-  // Fallback: mapeamento por palavras-chave no nome
   const lower = category.name.toLowerCase();
   for (const key of Object.keys(CATEGORY_IMAGES)) {
     if (lower.includes(key)) return CATEGORY_IMAGES[key];
@@ -50,121 +48,106 @@ function getCategoryImage(category: Category): string {
 }
 
 export function CategoryNav({ categories, activeCategory, onCategoryChange }: CategoryNavProps) {
-  const handleClick = (categoryId: string) => {
-    onCategoryChange(categoryId === activeCategory ? '' : categoryId);
-  };
+  const activecat = categories.find(c => c.id === activeCategory);
 
-  const activeName = categories.find(c => c.id === activeCategory)?.name;
+  // ── MODO SELECIONADO: só a categoria ativa + botão voltar ──────────────
+  if (activecat) {
+    return (
+      <div className="border-b border-border">
+        {/* Banner da categoria selecionada */}
+        <div className="relative h-28 md:h-36 overflow-hidden">
+          {/* Foto de fundo */}
+          <img
+            src={getCategoryImage(activecat)}
+            alt={activecat.name}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'brightness(0.45)' }}
+          />
+          {/* Gradiente */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
 
+          {/* Conteúdo sobre a foto */}
+          <div className="relative h-full container flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
+                Categoria selecionada
+              </span>
+              <h2
+                className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white leading-none"
+                style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}
+              >
+                {activecat.name}
+              </h2>
+            </div>
+
+            {/* Botão voltar */}
+            <button
+              onClick={() => onCategoryChange('')}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 hover:border-primary/50 text-white text-sm font-semibold transition-all backdrop-blur-sm group"
+            >
+              <Grid2X2 className="w-4 h-4 text-primary" />
+              <span>Ver todas</span>
+              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+
+          {/* Tarja inferior colorida */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary"
+            style={{ boxShadow: '0 0 12px var(--primary)' }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── MODO INICIAL: grid com todas as categorias ─────────────────────────
   return (
     <section className="bg-background py-4 border-b border-border">
-      <div className="container space-y-3">
-
-        {/* Botão "Voltar ao menu" — aparece só quando uma categoria está aberta */}
-        <div
-          style={{
-            maxHeight: activeCategory ? '48px' : '0px',
-            opacity: activeCategory ? 1 : 0,
-            overflow: 'hidden',
-            transition: 'max-height 0.3s ease, opacity 0.25s ease',
-          }}
-        >
-          <button
-            onClick={() => onCategoryChange('')}
-            className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors group"
-          >
-            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Voltar ao menu</span>
-            {activeName && (
-              <span className="text-xs text-muted-foreground font-normal ml-1">
-                — {activeName}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Grid de categorias */}
+      <div className="container">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3">
           {categories.map((category) => {
-            const isActive = activeCategory === category.id;
             const imgUrl = getCategoryImage(category);
-
             return (
               <button
                 key={category.id}
-                onClick={() => handleClick(category.id)}
+                onClick={() => onCategoryChange(category.id)}
                 className="group relative overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 style={{
                   aspectRatio: '4/3',
-                  transform: isActive ? 'scale(1.04)' : 'scale(1)',
-                  transition: 'transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease, opacity 0.25s ease',
-                  boxShadow: isActive
-                    ? '0 0 0 3px var(--primary), 0 8px 32px rgba(0,0,0,0.55)'
-                    : '0 2px 8px rgba(0,0,0,0.25)',
-                  opacity: activeCategory && !isActive ? 0.55 : 1,
-                  zIndex: isActive ? 2 : 1,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                 }}
+                onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
+                onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
               >
+                {/* Foto */}
                 <img
                   src={imgUrl}
                   alt={category.name}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{
-                    transition: 'transform 0.4s ease, filter 0.25s ease',
-                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
-                    filter: isActive ? 'brightness(0.75)' : 'brightness(0.5)',
-                  }}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  style={{ filter: 'brightness(0.55)' }}
                   loading="lazy"
                 />
-
+                {/* Gradiente */}
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.15) 60%, transparent 100%)',
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)',
                   }}
                 />
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/15 transition-colors duration-300 rounded-xl" />
 
-                {isActive && (
-                  <div className="absolute inset-0 rounded-xl border-2 border-primary pointer-events-none" />
-                )}
-
-                {isActive && (
-                  <div
-                    className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full bg-primary shadow-lg"
-                    style={{ width: 20, height: 20 }}
-                  >
-                    <ChevronDown className="w-3 h-3 text-white" strokeWidth={3} />
-                  </div>
-                )}
-
-                {!isActive && (
-                  <div
-                    className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full bg-black/40 border border-white/20 opacity-0 group-hover:opacity-100"
-                    style={{ width: 20, height: 20, transition: 'opacity 0.2s' }}
-                  >
-                    <ChevronLeft className="w-3 h-3 text-white rotate-180" strokeWidth={2} />
-                  </div>
-                )}
-
+                {/* Nome */}
                 <div className="absolute bottom-0 left-0 right-0 p-2">
                   <span
-                    className="block text-[10px] sm:text-xs font-bold uppercase tracking-wide leading-tight text-left"
-                    style={{
-                      textShadow: '0 1px 6px rgba(0,0,0,1)',
-                      color: isActive ? 'var(--primary)' : 'white',
-                      transition: 'color 0.2s',
-                    }}
+                    className="block text-[10px] sm:text-xs font-bold uppercase tracking-wide leading-tight text-left text-white group-hover:text-primary transition-colors"
+                    style={{ textShadow: '0 1px 6px rgba(0,0,0,1)' }}
                   >
                     {category.name}
                   </span>
                 </div>
-
-                {isActive && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary rounded-b-xl"
-                    style={{ boxShadow: '0 0 8px var(--primary)' }}
-                  />
-                )}
               </button>
             );
           })}
