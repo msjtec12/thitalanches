@@ -1,10 +1,10 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const { settings } = useOrders();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (settings.primaryColor) {
       // Convert hex to HSL for shadcn compatibility if possible, 
       // but for simplicity we'll just set the hex directly or as a CSS variable that 
