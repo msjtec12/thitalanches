@@ -23,12 +23,20 @@ export function ProductList({ products, categories, activeCategory, isLoading }:
     );
   }
 
-  // Nenhuma categoria selecionada ainda (categorias ainda carregando ou vazias)
+  // Nenhuma categoria selecionada — usuário está no grid, não mostrar nada
   if (!activeCategory) {
+    if (isLoading) {
+      return (
+        <section className="py-8 flex flex-col items-center justify-center gap-3 min-h-[200px]">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">Carregando categorias...</p>
+        </section>
+      );
+    }
     return (
-      <section className="py-8 flex flex-col items-center justify-center gap-3 min-h-[200px]">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-sm text-muted-foreground">Carregando categorias...</p>
+      <section className="py-10 flex flex-col items-center justify-center gap-3 min-h-[180px]">
+        <ShoppingBag className="w-10 h-10 text-primary/30" />
+        <p className="text-sm text-muted-foreground font-medium">Selecione uma categoria acima para ver os produtos</p>
       </section>
     );
   }
@@ -45,7 +53,6 @@ export function ProductList({ products, categories, activeCategory, isLoading }:
 
   return (
     <section className="py-4">
-      <h2 className="text-lg font-semibold mb-4">{categoryName}</h2>
       <div className="grid gap-3">
         {filteredProducts.map((product) => (
           <ProductCard key={product.id} product={product} />

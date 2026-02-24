@@ -67,7 +67,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
 
           {/* Conteúdo sobre a foto */}
-          <div className="relative h-full container flex items-center justify-between">
+          <div className="relative h-full container md:pr-96 flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
                 Categoria selecionada
@@ -105,7 +105,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
   return (
     <section className="bg-background py-4 border-b border-border">
       <div className="container">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3 md:pr-96">
           {categories.map((category) => {
             const imgUrl = getCategoryImage(category);
             return (

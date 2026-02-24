@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOrders } from '@/contexts/OrderContext';
 import { StoreHeader } from '@/components/StoreHeader';
@@ -12,13 +12,18 @@ export default function CustomerOrder() {
   const [searchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState('');
 
-  // Define a categoria ativa assim que as categorias carregarem
+  const initialCategorySet = useRef(false);
+
+  // Define a categoria ativa APENAS na primeira carga das categorias
   useEffect(() => {
-    if (categories.length > 0 && !activeCategory) {
-      const snacks = categories.find(c => c.name.toLowerCase().includes('lanche'));
-      setActiveCategory(snacks ? snacks.id : categories[0].id);
+    if (categories.length > 0 && !initialCategorySet.current) {
+      initialCategorySet.current = true;
+      // Começa sem categoria selecionada — usuário escolhe no grid
+      // Descomente a linha abaixo se quiser pré-selecionar uma:
+      // const snacks = categories.find(c => c.name.toLowerCase().includes('lanche'));
+      // setActiveCategory(snacks ? snacks.id : categories[0].id);
     }
-  }, [categories, activeCategory]);
+  }, [categories]);
 
   const activeProducts = products.filter(p => p.isActive);
 

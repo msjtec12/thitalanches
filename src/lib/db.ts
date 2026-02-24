@@ -127,6 +127,22 @@ export const db = {
     return { id: data.id, name: data.name, order: data.sort_order, photoUrl: data.photo_url || undefined };
   },
 
+  async uploadCategoryImage(file: File): Promise<string | null> {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const filename = `cat-${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from('category-images')
+      .upload(filename, file, { upsert: true, contentType: file.type });
+    if (error) {
+      console.error('Erro ao fazer upload da imagem:', error);
+      return null;
+    }
+    const { data: urlData } = supabase.storage
+      .from('category-images')
+      .getPublicUrl(data.path);
+    return urlData.publicUrl;
+  },
+
   async updateCategory(category: Category): Promise<void> {
     await supabase
       .from('categories')

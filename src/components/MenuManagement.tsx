@@ -14,6 +14,7 @@ import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed, Check, Che
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatPrice } from '@/utils/format';
+import { db } from '@/lib/db';
 
 // Componente inline de edição de categoria
 function CategoryEditRow({
@@ -25,23 +26,47 @@ function CategoryEditRow({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(category.name);
-  const [photoUrl, setPhotoUrl] = useState(category.photoUrl || '');
+  const [previewUrl, setPreviewUrl] = useState<string>(category.photoUrl || '');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useState<HTMLInputElement | null>(null);
 
-  const handleSave = () => {
-    onUpdate({ ...category, name: name.trim() || category.name, photoUrl: photoUrl.trim() || undefined });
-    setIsEditing(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    // Preview local imediato
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
   };
+
+  const handleSave = async () => {
+    setIsUploading(true);
+    let finalPhotoUrl = category.photoUrl;
+
+    if (selectedFile) {
+      const uploaded = await db.uploadCategoryImage(selectedFile);
+      if (uploaded) finalPhotoUrl = uploaded;
+    }
+
+    onUpdate({ ...category, name: name.trim() || category.name, photoUrl: finalPhotoUrl });
+    setSelectedFile(null);
+    setIsEditing(false);
+    setIsUploading(false);
+  };
+
+  const currentPhoto = previewUrl || category.photoUrl;
 
   return (
     <div className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden">
       {/* Linha principal */}
       <div className="flex items-center gap-2 p-2">
-        {/* Preview da foto */}
+        {/* Thumbnail atual */}
         <div
-          className="w-10 h-10 rounded-md flex-shrink-0 bg-muted overflow-hidden border border-border/40"
-          style={{ backgroundImage: (photoUrl || category.photoUrl) ? `url(${photoUrl || category.photoUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          className="w-10 h-10 rounded-md flex-shrink-0 bg-muted overflow-hidden border border-border/40 flex items-center justify-center"
+          style={currentPhoto ? { backgroundImage: `url(${currentPhoto})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
         >
-          {!photoUrl && !category.photoUrl && <ImageIcon className="w-4 h-4 m-auto mt-3 text-muted-foreground" />}
+          {!currentPhoto && <ImageIcon className="w-4 h-4 text-muted-foreground" />}
         </div>
 
         <span className="flex-1 text-sm font-medium truncate">{category.name}</span>
@@ -65,26 +90,48 @@ function CategoryEditRow({
       {/* Painel de edição expansível */}
       {isEditing && (
         <div className="border-t border-border/40 p-3 space-y-3 bg-background/60">
+          {/* Nome */}
           <div className="space-y-1">
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome</Label>
             <Input value={name} onChange={e => setName(e.target.value)} className="h-8" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">URL da foto</Label>
-            <Input
-              value={photoUrl}
-              onChange={e => setPhotoUrl(e.target.value)}
-              placeholder="https://..."
-              className="h-8 text-xs"
-            />
-            {photoUrl && (
-              <img src={photoUrl} alt="preview" className="mt-1 h-20 w-full object-cover rounded-md border border-border/40" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+
+          {/* Upload de imagem */}
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Foto da categoria</Label>
+
+            {/* Preview */}
+            {currentPhoto && (
+              <img
+                src={currentPhoto}
+                alt="preview"
+                className="w-full h-24 object-cover rounded-lg border border-border/40"
+                onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+              />
+            )}
+
+            {/* Botão de seleção */}
+            <label className="flex items-center justify-center gap-2 w-full h-10 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors text-sm text-muted-foreground hover:text-primary">
+              <ImageIcon className="w-4 h-4" />
+              <span>{selectedFile ? selectedFile.name : 'Selecionar imagem...'}</span>
+              <input
+                ref={el => { fileInputRef[1](el); }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+
+            {selectedFile && (
+              <p className="text-[10px] text-muted-foreground">✓ Imagem selecionada — será enviada ao salvar</p>
             )}
           </div>
+
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancelar</Button>
-            <Button size="sm" className="gap-1" onClick={handleSave}>
-              <Check className="w-3 h-3" /> Salvar
+            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); }}>Cancelar</Button>
+            <Button size="sm" className="gap-1" onClick={handleSave} disabled={isUploading}>
+              {isUploading ? <><span className="animate-spin">⏳</span> Enviando...</> : <><Check className="w-3 h-3" /> Salvar</>}
             </Button>
           </div>
         </div>
