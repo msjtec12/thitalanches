@@ -8,33 +8,52 @@ interface CategoryNavProps {
 }
 
 const CATEGORY_IMAGES: Record<string, string> = {
+  // Combos
+  'combo':          'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=400&h=300&fit=crop&q=80',
+  // Hot Dog / Prensados
   'hot dog':        'https://images.unsplash.com/photo-1612392166886-ee8475b03af2?w=400&h=300&fit=crop&q=80',
   'prensado':       'https://images.unsplash.com/photo-1612392166886-ee8475b03af2?w=400&h=300&fit=crop&q=80',
+  // Hambúrguer
   'hambúrguer':     'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop&q=80',
   'hamburger':      'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop&q=80',
   'hamburguer':     'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop&q=80',
+  // Frango
   'frango':         'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=400&h=300&fit=crop&q=80',
+  // Churrasco
   'churrasco':      'https://images.unsplash.com/photo-1558030137-a56c1b013eed?w=400&h=300&fit=crop&q=80',
+  // Calabresa
+  'calabresa':      'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=400&h=300&fit=crop&q=80',
+  // Universitário
   'universitário':  'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=400&h=300&fit=crop&q=80',
   'universitario':  'https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=400&h=300&fit=crop&q=80',
+  // Especiais
+  'especial':       'https://images.unsplash.com/photo-1550547660-d9450f859349?w=400&h=300&fit=crop&q=80',
+  'especiais':      'https://images.unsplash.com/photo-1550547660-d9450f859349?w=400&h=300&fit=crop&q=80',
+  // Chicken
   'chicken':        'https://images.unsplash.com/photo-1643985426932-42b4b51e8a65?w=400&h=300&fit=crop&q=80',
-  'especial':       'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=400&h=300&fit=crop&q=80',
-  'especiais':      'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=400&h=300&fit=crop&q=80',
+  'frango frito':   'https://images.unsplash.com/photo-1643985426932-42b4b51e8a65?w=400&h=300&fit=crop&q=80',
+  // Batata Frita
+  'batata':         'https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?w=400&h=300&fit=crop&q=80',
+  // Molhos
+  'molho':          'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=400&h=300&fit=crop&q=80',
+  // Bebidas
+  'bebida':         'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop&q=80',
+  'bebidas':        'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop&q=80',
+  // Açaí
   'açaí':           'https://images.unsplash.com/photo-1613843439331-2e8b55f52e70?w=400&h=300&fit=crop&q=80',
   'acai':           'https://images.unsplash.com/photo-1613843439331-2e8b55f52e70?w=400&h=300&fit=crop&q=80',
+  // Sorvetes
+  'sorvete':        'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop&q=80',
+  // Milk Shake
   'milk shake':     'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400&h=300&fit=crop&q=80',
   'milkshake':      'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400&h=300&fit=crop&q=80',
   'shake':          'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400&h=300&fit=crop&q=80',
-  'sorvete':        'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop&q=80',
-  'sorvetes':       'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop&q=80',
-  'bebida':         'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop&q=80',
-  'bebidas':        'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop&q=80',
+  // Sobremesas
   'sobremesa':      'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop&q=80',
-  'sobremesas':     'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop&q=80',
+  // Genérico
   'lanche':         'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=400&h=300&fit=crop&q=80',
   'porção':         'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=400&h=300&fit=crop&q=80',
   'porcao':         'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=400&h=300&fit=crop&q=80',
-  'porções':        'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=400&h=300&fit=crop&q=80',
 };
 const FALLBACK = 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=400&h=300&fit=crop&q=80';
 
