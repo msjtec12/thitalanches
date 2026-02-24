@@ -68,26 +68,27 @@ export default function CustomerOrder() {
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/20 pointer-events-none" />
 
-          <div className="container relative py-10 flex flex-col items-center gap-6">
+          <div className="container relative py-12 flex flex-col items-center gap-10 text-center">
             {/* Logo */}
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="relative">
-                <div className="absolute -inset-2 bg-amber-500/15 rounded-full blur-xl pointer-events-none" />
+            <div className="flex flex-col items-center gap-8">
+              <div className="relative overflow-hidden rounded-full border-2 border-amber-500/60 bg-black/40 shadow-[0_0_20px_rgba(212,168,83,0.3)]">
                 <img
                   src="/logo.png"
                   alt="Thita Lanches"
-                  className="relative h-20 w-20 object-contain rounded-full border-2 border-amber-500/40 bg-black/40 p-0.5 transition-transform duration-500 hover:scale-110"
+                  className="object-contain"
                   style={{ 
-                    filter: 'drop-shadow(0 0 10px rgba(212,168,83,0.3))',
-                    transform: 'scale(1.5)' // Zoom para preencher o círculo
+                    width: '110px',
+                    height: '110px',
+                    transform: 'scale(1.75)', // Zoom igual ao header
+                    transition: 'transform 0.5s ease',
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.6)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.5)'; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.85)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.75)'; }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
               
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center gap-2">
                 <span
                   className="text-sm md:text-base font-semibold italic text-white"
                   style={{ textShadow: '0 1px 6px rgba(0,0,0,0.9)' }}
