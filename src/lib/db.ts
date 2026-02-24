@@ -109,7 +109,12 @@ export const db = {
       .from('categories')
       .select('*')
       .order('sort_order');
-    return error ? [] : data.map(c => ({ id: c.id, name: c.name, order: c.sort_order }));
+    return error ? [] : data.map(c => ({
+      id: c.id,
+      name: c.name,
+      order: c.sort_order,
+      photoUrl: c.photo_url || undefined,
+    }));
   },
 
   async createCategory(name: string, order: number): Promise<Category | null> {
@@ -119,7 +124,14 @@ export const db = {
       .select()
       .single();
     if (error) { console.error('Erro ao criar categoria:', error); return null; }
-    return { id: data.id, name: data.name, order: data.sort_order };
+    return { id: data.id, name: data.name, order: data.sort_order, photoUrl: data.photo_url || undefined };
+  },
+
+  async updateCategory(category: Category): Promise<void> {
+    await supabase
+      .from('categories')
+      .update({ name: category.name, photo_url: category.photoUrl || null })
+      .eq('id', category.id);
   },
 
   async deleteCategory(categoryId: string): Promise<void> {

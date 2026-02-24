@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
-import { Product, ProductExtra } from '@/types/order';
+import { Product, ProductExtra, Category } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -10,13 +10,92 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed } from 'lucide-react';
+import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed, Check, ChevronDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatPrice } from '@/utils/format';
 
+// Componente inline de edição de categoria
+function CategoryEditRow({
+  category, onUpdate, onDelete
+}: {
+  category: Category;
+  onUpdate: (c: Category) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(category.name);
+  const [photoUrl, setPhotoUrl] = useState(category.photoUrl || '');
+
+  const handleSave = () => {
+    onUpdate({ ...category, name: name.trim() || category.name, photoUrl: photoUrl.trim() || undefined });
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden">
+      {/* Linha principal */}
+      <div className="flex items-center gap-2 p-2">
+        {/* Preview da foto */}
+        <div
+          className="w-10 h-10 rounded-md flex-shrink-0 bg-muted overflow-hidden border border-border/40"
+          style={{ backgroundImage: (photoUrl || category.photoUrl) ? `url(${photoUrl || category.photoUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          {!photoUrl && !category.photoUrl && <ImageIcon className="w-4 h-4 m-auto mt-3 text-muted-foreground" />}
+        </div>
+
+        <span className="flex-1 text-sm font-medium truncate">{category.name}</span>
+
+        <Button
+          variant="ghost" size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          onClick={() => setIsEditing(v => !v)}
+        >
+          {isEditing ? <ChevronDown className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+        </Button>
+        <Button
+          variant="ghost" size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(category.id)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Painel de edição expansível */}
+      {isEditing && (
+        <div className="border-t border-border/40 p-3 space-y-3 bg-background/60">
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} className="h-8" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">URL da foto</Label>
+            <Input
+              value={photoUrl}
+              onChange={e => setPhotoUrl(e.target.value)}
+              placeholder="https://..."
+              className="h-8 text-xs"
+            />
+            {photoUrl && (
+              <img src={photoUrl} alt="preview" className="mt-1 h-20 w-full object-cover rounded-md border border-border/40" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+            )}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancelar</Button>
+            <Button size="sm" className="gap-1" onClick={handleSave}>
+              <Check className="w-3 h-3" /> Salvar
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export function MenuManagement() {
-  const { products, categories, updateProduct, deleteProduct, addCategory, deleteCategory } = useOrders();
+  const { products, categories, updateProduct, deleteProduct, addCategory, updateCategory, deleteCategory } = useOrders();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -333,32 +412,31 @@ export function MenuManagement() {
       </Sheet>
 
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Gerenciar Categorias</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
+            {/* Adicionar nova */}
             <div className="flex gap-2">
-              <Input 
-                placeholder="Nome da nova categoria" 
+              <Input
+                placeholder="Nome da nova categoria"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
               />
               <Button onClick={handleAddCategory}>Adicionar</Button>
             </div>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+
+            {/* Lista de categorias com edição */}
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
               {categories.map(category => (
-                <div key={category.id} className="flex items-center justify-between p-2 bg-secondary/30 rounded-lg border border-border/50">
-                  <span className="text-sm font-medium">{category.name}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteCategory(category.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                <CategoryEditRow
+                  key={category.id}
+                  category={category}
+                  onUpdate={updateCategory}
+                  onDelete={deleteCategory}
+                />
               ))}
             </div>
           </div>
