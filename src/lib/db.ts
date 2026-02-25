@@ -187,11 +187,13 @@ export const db = {
   },
 
   async updateProduct(product: Product) {
-    // 1. Update main product
-    const { error: pError } = await supabase
+    const isNew = product.id.startsWith('prod-');
+
+    // 1. Upsert main product and capture the real ID returned by the database
+    const { data: savedProduct, error: pError } = await supabase
       .from('products')
       .upsert({
-        id: product.id.startsWith('prod-') ? undefined : product.id,
+        id: isNew ? undefined : product.id,
         name: product.name,
         description: product.description,
         price: product.price,
@@ -205,20 +207,29 @@ export const db = {
       .select()
       .single();
 
-    if (pError) throw pError;
+    if (pError) {
+      console.error('Erro ao salvar produto:', pError);
+      throw pError;
+    }
 
-    // 2. Handle extras (this is simplified, ideally you'd sync them properly)
-    if (product.extras) {
+    // Use the real database ID (crucial for new products whose temp id starts with 'prod-')
+    const realProductId = savedProduct.id;
+
+    // 2. Handle extras — link them to the real product ID
+    if (product.extras && product.extras.length > 0) {
       for (const extra of product.extras) {
-        await supabase.from('product_extras').upsert({
+        const { error: eError } = await supabase.from('product_extras').upsert({
           id: extra.id.startsWith('extra-') ? undefined : extra.id,
-          product_id: product.id,
+          product_id: realProductId,
           name: extra.name,
           price: extra.price,
           is_active: extra.isActive
         });
+        if (eError) console.error('Erro ao salvar adicional:', eError);
       }
     }
+
+    return savedProduct;
   },
 
   async deleteProduct(productId: string) {
