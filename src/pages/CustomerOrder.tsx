@@ -14,14 +14,9 @@ export default function CustomerOrder() {
 
   const initialCategorySet = useRef(false);
 
-  // Define a categoria ativa APENAS na primeira carga das categorias
   useEffect(() => {
     if (categories.length > 0 && !initialCategorySet.current) {
       initialCategorySet.current = true;
-      // Começa sem categoria selecionada — usuário escolhe no grid
-      // Descomente a linha abaixo se quiser pré-selecionar uma:
-      // const snacks = categories.find(c => c.name.toLowerCase().includes('lanche'));
-      // setActiveCategory(snacks ? snacks.id : categories[0].id);
     }
   }, [categories]);
 
@@ -30,22 +25,38 @@ export default function CustomerOrder() {
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
       <StoreHeader />
-      <CategoryNav 
-        categories={categories} 
-        activeCategory={activeCategory} 
-        onCategoryChange={setActiveCategory} 
-      />
-      <main className="container md:pr-96">
-        <ProductList 
-          products={activeProducts} 
-          categories={categories}
-          activeCategory={activeCategory}
-          isLoading={isLoadingData}
-        />
-      </main>
+
+      {/* Layout de duas colunas no desktop */}
+      <div className="md:flex md:items-start md:gap-0">
+
+        {/* Coluna principal: categoria + produtos */}
+        <div className="flex-1 min-w-0">
+          <CategoryNav
+            categories={categories}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
+          <main className="container py-2">
+            <ProductList
+              products={activeProducts}
+              categories={categories}
+              activeCategory={activeCategory}
+              isLoading={isLoadingData}
+            />
+          </main>
+        </div>
+
+        {/* Coluna do carrinho (desktop) — sticky, à direita */}
+        <aside className="hidden md:block w-80 xl:w-96 flex-shrink-0 sticky top-4 self-start max-h-[calc(100vh-1rem)] overflow-y-auto mr-4 mt-4">
+          <Cart desktopInline />
+        </aside>
+      </div>
+
+      {/* Botão flutuante mobile */}
       <Cart />
+
       <OrderTracking />
-      
+
       <footer
         className="mt-8 border-t border-white/5 shadow-inner"
         style={{
@@ -64,22 +75,20 @@ export default function CustomerOrder() {
           `,
         }}
       >
-        {/* Overlay igual ao header */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/20 pointer-events-none" />
 
           <div className="container relative py-12 flex flex-col items-center gap-6 text-center">
-            {/* Logo */}
             <div className="flex flex-col items-center gap-4">
               <div className="relative overflow-hidden rounded-full border-2 border-amber-500/60 bg-black/40 shadow-[0_0_20px_rgba(212,168,83,0.3)]">
                 <img
                   src="/logo.png"
                   alt="Thita Lanches"
                   className="object-contain"
-                  style={{ 
+                  style={{
                     width: '110px',
                     height: '110px',
-                    transform: 'scale(1.75)', // Mantém o zoom solicitado
+                    transform: 'scale(1.75)',
                     transition: 'transform 0.5s ease',
                   }}
                   onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.85)'; }}
@@ -87,7 +96,7 @@ export default function CustomerOrder() {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
-              
+
               <div className="flex flex-col items-center gap-1.5">
                 <span
                   className="text-sm md:text-lg font-bold italic text-white"
@@ -101,7 +110,6 @@ export default function CustomerOrder() {
               </div>
             </div>
 
-            {/* Endereço */}
             <a
               href="https://maps.google.com/?q=Rua+Magda+Perona+Frossard+565+Jardim+Nova+Alianca+Ribeirao+Preto"
               target="_blank"
@@ -116,10 +124,8 @@ export default function CustomerOrder() {
               </span>
             </a>
 
-            {/* Divider */}
             <div className="w-24 h-px bg-amber-500/20" />
 
-            {/* Copyright */}
             <p className="text-[9px] text-zinc-600 font-medium">
               © {new Date().getFullYear()} Thita Lanches. Todos os direitos reservados.
             </p>
