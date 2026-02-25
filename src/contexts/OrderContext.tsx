@@ -222,31 +222,58 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
 
   const updateProduct = async (updatedProduct: Product) => {
-    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    await db.updateProduct(updatedProduct);
-    
-    // Reflect price change in open orders
-    setOrders(prevOrders => prevOrders.map(order => {
-      if (order.status === 'completed' || order.status === 'cancelled') return order;
-      
-      let orderChanged = false;
-      const updatedItems = order.items.map(item => {
-        if (item.product.id === updatedProduct.id) {
-          orderChanged = true;
-          return { ...item, product: updatedProduct };
-        }
-        return item;
-      });
+    const isNew = updatedProduct.id.startsWith('prod-');
 
-      if (orderChanged) {
-        const newTotal = updatedItems.reduce((sum, item) => {
-          const extrasTotal = item.selectedExtras.reduce((e, extra) => e + extra.price, 0);
-          return sum + (item.product.price + extrasTotal) * item.quantity;
-        }, 0);
-        return { ...order, items: updatedItems, total: newTotal };
-      }
-      return order;
-    }));
+    if (!isNew) {
+      // Produto existente: atualiza imediatamente no estado local
+      setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    }
+
+    // Salva no banco e recebe o objeto com o ID real gerado
+    const savedProduct = await db.updateProduct(updatedProduct);
+
+    if (isNew && savedProduct) {
+      // Produto novo: adiciona à lista com o ID real do banco
+      const newProductWithRealId: Product = {
+        ...updatedProduct,
+        id: savedProduct.id,
+        name: savedProduct.name,
+        description: savedProduct.description,
+        price: savedProduct.price,
+        costPrice: savedProduct.cost_price,
+        categoryId: savedProduct.category_id,
+        isActive: savedProduct.is_active,
+        image: savedProduct.image_url,
+        isCombo: savedProduct.is_combo,
+        comboItems: savedProduct.combo_items || [],
+      };
+      setProducts(prev => [...prev, newProductWithRealId]);
+    }
+
+    // Reflect price change in open orders (só para produtos existentes)
+    if (!isNew) {
+      setOrders(prevOrders => prevOrders.map(order => {
+        if (order.status === 'completed' || order.status === 'cancelled') return order;
+
+        let orderChanged = false;
+        const updatedItems = order.items.map(item => {
+          if (item.product.id === updatedProduct.id) {
+            orderChanged = true;
+            return { ...item, product: updatedProduct };
+          }
+          return item;
+        });
+
+        if (orderChanged) {
+          const newTotal = updatedItems.reduce((sum, item) => {
+            const extrasTotal = item.selectedExtras.reduce((e, extra) => e + extra.price, 0);
+            return sum + (item.product.price + extrasTotal) * item.quantity;
+          }, 0);
+          return { ...order, items: updatedItems, total: newTotal };
+        }
+        return order;
+      }));
+    }
   };
 
   const deleteProduct = async (productId: string) => {
