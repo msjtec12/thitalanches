@@ -49,13 +49,17 @@ export interface neighborhood {
 }
 
 export interface DeliveryInfo {
-  neighborhoodId: string;
+  cep?: string;
   street: string;
   number: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
   complement?: string;
   reference?: string;
   deliveryFee: number;
   estimatedTime: number; // in minutes
+  distanceKm?: number;
 }
 
 export interface Order {
@@ -86,6 +90,13 @@ export interface StoreSettings {
   prepTime: number; // in minutes
   neighborhoods: neighborhood[];
   deliveryRadius: number; // in km
+  storeCep?: string;
+  storeStreet?: string;
+  storeNumber?: string;
+  storeCity?: string;
+  storeState?: string;
+  storeLat?: number;
+  storeLng?: number;
   openingHours: {
     dayOfWeek: number;
     openTime: string;

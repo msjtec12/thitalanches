@@ -9,7 +9,7 @@ import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 import { formatPrice } from '@/utils/format';
 import { useState, useEffect } from 'react';
 import { CashierModule } from './CashierModule';
-import { NeighborhoodManager } from './NeighborhoodManager';
+import { DeliveryConfig } from './DeliveryConfig';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from "sonner";
 
@@ -144,7 +144,7 @@ export function SystemDashboard() {
 
         {userRole === 'admin' && (
           <TabsContent value="delivery" className="mt-0">
-            <NeighborhoodManager />
+            <DeliveryConfig />
           </TabsContent>
         )}
 

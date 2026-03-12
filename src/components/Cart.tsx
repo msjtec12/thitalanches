@@ -8,14 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare, Search } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { PickupType, PaymentMethod } from '@/types/order';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 import { formatPrice } from '@/utils/format';
+import { fetchAddressFromCep, fetchCoordinatesFromAddress, getDistanceKm, calculateDeliveryFee } from '@/utils/delivery';
 
 interface CartProps {
-  /** Se true, renderiza apenas o painel inline (desktop aside). Sem botão/sheet. */
   desktopInline?: boolean;
 }
 
@@ -32,38 +32,65 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const [deliveryInfo, setDeliveryInfo] = useState(() => {
     const saved = localStorage.getItem('thita_delivery_info');
     return saved ? JSON.parse(saved) : {
-      neighborhoodId: '',
+      cep: '',
       street: '',
       number: '',
+      neighborhood: '',
+      city: '',
+      state: '',
       complement: '',
       reference: '',
+      distanceKm: 0,
     };
   });
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
+  const [addressError, setAddressError] = useState('');
   const [generalObservation, setGeneralObservation] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [changeAmount, setChangeAmount] = useState('');
   const [lastOrderUrl, setLastOrderUrl] = useState<string>('');
   const [customerWhatsAppUrl, setCustomerWhatsAppUrl] = useState<string>('');
 
-  const selectedNeighborhood = (settings.neighborhoods || []).find(n => n.id === deliveryInfo.neighborhoodId);
-  const deliveryFee = pickupType === 'delivery' && selectedNeighborhood ? selectedNeighborhood.deliveryFee : 0;
+  const deliveryFee = pickupType === 'delivery' ? (deliveryInfo.distanceKm <= 12 ? (calculateDeliveryFee(deliveryInfo.distanceKm) || 0) : 0) : 0;
   const grandTotal = total + deliveryFee;
 
-  const isStreetInNeighborhood = () => {
-    if (!settings.isStreetValidationEnabled) return true;
-    if (pickupType !== 'delivery' || !selectedNeighborhood || !deliveryInfo.street || deliveryInfo.street.length < 3) return true;
-    if (!selectedNeighborhood.allowedStreets || selectedNeighborhood.allowedStreets.length === 0) return true;
+  const handleSearchCep = async () => {
+    if ((deliveryInfo.cep || '').length < 8) return;
+    setIsSearchingCep(true);
+    setAddressError('');
+    const data = await fetchAddressFromCep(deliveryInfo.cep as string);
+    if (!data) {
+      setAddressError('CEP não encontrado.');
+      setIsSearchingCep(false);
+      return;
+    }
+
+    let lat = null, lng = null;
+    const coords = await fetchCoordinatesFromAddress(data.street, data.city, data.state);
+    if (coords) {
+      lat = coords.lat;
+      lng = coords.lng;
+    }
+
+    let dist = 0;
+    if (lat && lng && settings.storeLat && settings.storeLng) {
+      dist = getDistanceKm(settings.storeLat, settings.storeLng, lat, lng);
+    }
     
-    const streetInput = deliveryInfo.street.toLowerCase().trim();
-    return selectedNeighborhood.allowedStreets.some(s => {
-      const allowed = s.toLowerCase().trim();
-      return streetInput.includes(allowed) || allowed.includes(streetInput);
-    });
+    // Fee will be calculated based on dist
+    if (dist > 12) {
+      setAddressError('Infelizmente não entregamos neste endereço. O limite máximo é de 12km da loja.');
+    } else if (!lat || !lng) {
+      setAddressError('CEP encontrado, mas não conseguimos validar a distância. Verifique com o atendente.');
+    }
+
+    setDeliveryInfo({...deliveryInfo, ...data, distanceKm: dist});
+    setIsSearchingCep(false);
   };
 
   const getEstimatedTime = () => {
-    if (pickupType === 'delivery' && selectedNeighborhood) {
-      return 20 + Math.ceil(selectedNeighborhood.estimatedDistanceKm * 5);
+    if (pickupType === 'delivery') {
+      return 20 + Math.ceil(deliveryInfo.distanceKm * 5);
     }
     return settings.prepTime;
   };
@@ -119,7 +146,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
       scheduledTime: pickupType === 'scheduled' ? scheduledTime : undefined,
       customerName,
       customerPhone: customerPhone || undefined,
-      deliveryInfo: pickupType === 'delivery' && selectedNeighborhood ? {
+      deliveryInfo: pickupType === 'delivery' ? {
         ...deliveryInfo,
         deliveryFee,
         estimatedTime: getEstimatedTime(),
@@ -153,7 +180,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
       const locationText = pickupType === 'delivery' 
         ? `🚀 *ENTREGA (DELIVERY)*\n` +
           `🏠 *ENDEREÇO:* ${deliveryInfo.street}, ${deliveryInfo.number}\n` +
-          `🏘️ *BAIRRO:* ${selectedNeighborhood?.name}\n` +
+          (deliveryInfo.neighborhood ? `🏘️ *BAIRRO:* ${deliveryInfo.neighborhood}\n` : '') +
           (deliveryInfo.complement ? `🏢 *COMPLEMENTO:* ${deliveryInfo.complement}\n` : '') +
           (deliveryInfo.reference ? `📍 *REFERÊNCIA:* ${deliveryInfo.reference}\n` : '')
         : pickupType === 'immediate' 
@@ -374,26 +401,22 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
           {pickupType === 'delivery' && (
             <div className="space-y-4 p-4 border border-border rounded-xl bg-secondary/20">
               <div className="space-y-2">
-                <Label>Seu bairro</Label>
-                <Select
-                  value={deliveryInfo.neighborhoodId}
-                  onValueChange={(v) => setDeliveryInfo({...deliveryInfo, neighborhoodId: v})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione seu bairro" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {settings.neighborhoods.map((n) => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {n.name} - {formatPrice(n.deliveryFee)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>CEP</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="00000-000"
+                    value={deliveryInfo.cep || ''}
+                    onChange={(e) => setDeliveryInfo({...deliveryInfo, cep: e.target.value})}
+                    maxLength={9}
+                  />
+                  <Button disabled={isSearchingCep || (deliveryInfo.cep || '').length < 8} onClick={handleSearchCep} variant="secondary">
+                     <Search className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2 space-y-2">
+              <div className="grid grid-cols-4 gap-2">
+                <div className="col-span-3 space-y-2">
                   <Label htmlFor="street">Rua</Label>
                   <Input
                     id="street"
@@ -402,7 +425,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                     onChange={(e) => setDeliveryInfo({...deliveryInfo, street: e.target.value})}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="col-span-1 space-y-2">
                   <Label htmlFor="number">Nº</Label>
                   <Input
                     id="number"
@@ -413,12 +436,19 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                 </div>
               </div>
 
-              {settings.isStreetValidationEnabled && deliveryInfo.street.length > 3 && !isStreetInNeighborhood() && (
+              <div className="space-y-2">
+                <Label>Bairro</Label>
+                <Input
+                  value={deliveryInfo.neighborhood || ''}
+                  onChange={(e) => setDeliveryInfo({...deliveryInfo, neighborhood: e.target.value})}
+                />
+              </div>
+
+              {addressError && (
                 <div className="bg-destructive/10 border border-destructive/20 p-2 rounded-lg flex gap-2 items-start mt-2">
                   <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-destructive font-medium leading-tight">
-                    A rua digitada não foi encontrada nos registros do bairro {selectedNeighborhood?.name}.
-                    Por favor, verifique se selecionou o bairro correto.
+                  <p className="text-xs text-destructive font-medium leading-tight">
+                    {addressError}
                   </p>
                 </div>
               )}
@@ -522,7 +552,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                  <>
                    <p><span className="text-muted-foreground">Tipo:</span> Entrega</p>
                    <p><span className="text-muted-foreground">Endereço:</span> {deliveryInfo.street}, {deliveryInfo.number}</p>
-                   <p><span className="text-muted-foreground">Bairro:</span> {selectedNeighborhood?.name}</p>
+                   {deliveryInfo.neighborhood && <p><span className="text-muted-foreground">Bairro:</span> {deliveryInfo.neighborhood}</p>}
                  </>
               )}
               {pickupType !== 'delivery' && (
@@ -568,7 +598,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
               className="flex-1"
               disabled={
                 (pickupType === 'scheduled' && !scheduledTime) ||
-                (pickupType === 'delivery' && (!deliveryInfo.neighborhoodId || !deliveryInfo.street || !deliveryInfo.number || !isStreetInNeighborhood()))
+                (pickupType === 'delivery' && (!deliveryInfo.cep || !deliveryInfo.street || !deliveryInfo.number || deliveryInfo.distanceKm > 12))
               }
             >
               Confirmar pedido
