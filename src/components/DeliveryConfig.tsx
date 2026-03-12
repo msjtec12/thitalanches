@@ -91,22 +91,22 @@ export function DeliveryConfig() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-1 space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-1 space-y-2">
             <Label>Número</Label>
             <Input value={number} onChange={(e) => setNumber(e.target.value)} />
           </div>
-          <div className="col-span-1 space-y-2">
+          <div className="md:col-span-1 space-y-2">
             <Label>Cidade</Label>
             <Input value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
-          <div className="col-span-1 space-y-2">
+          <div className="md:col-span-1 space-y-2">
             <Label>Estado (UF)</Label>
             <Input value={state} onChange={(e) => setState(e.target.value)} maxLength={2} />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
              <Label>Latitude {lat ? '(Confirmado)' : ''}</Label>
              <Input 

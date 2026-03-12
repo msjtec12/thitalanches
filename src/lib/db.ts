@@ -38,7 +38,14 @@ export const db = {
       logoUrl: data.logo_url,
       primaryColor: data.primary_color,
       primaryColorHover: data.primary_color_hover,
-      isSoundEnabled: data.is_sound_enabled
+      isSoundEnabled: data.is_sound_enabled,
+      storeCep: data.store_cep,
+      storeStreet: data.store_street,
+      storeNumber: data.store_number,
+      storeCity: data.store_city,
+      storeState: data.store_state,
+      storeLat: data.store_lat,
+      storeLng: data.store_lng
       // adminPin is explicitly excluded for security
     };
   },
@@ -77,6 +84,13 @@ export const db = {
     if (rest.primaryColor !== undefined) updateData.primary_color = rest.primaryColor;
     if (rest.primaryColorHover !== undefined) updateData.primary_color_hover = rest.primaryColorHover;
     if (rest.isSoundEnabled !== undefined) updateData.is_sound_enabled = rest.isSoundEnabled;
+    if (rest.storeCep !== undefined) updateData.store_cep = rest.storeCep;
+    if (rest.storeStreet !== undefined) updateData.store_street = rest.storeStreet;
+    if (rest.storeNumber !== undefined) updateData.store_number = rest.storeNumber;
+    if (rest.storeCity !== undefined) updateData.store_city = rest.storeCity;
+    if (rest.storeState !== undefined) updateData.store_state = rest.storeState;
+    if (rest.storeLat !== undefined) updateData.store_lat = rest.storeLat;
+    if (rest.storeLng !== undefined) updateData.store_lng = rest.storeLng;
 
     const { error } = await supabase
       .from('store_settings')
@@ -88,6 +102,8 @@ export const db = {
         return false;
     }
 
+    /* 
+    Deprecated: Neighborhood manager has been replaced by Distance based DeliveryConfig
     if (neighborhoods) {
       for (const n of neighborhoods) {
         await db.upsertNeighborhood(n);
@@ -99,7 +115,8 @@ export const db = {
       if (toDelete.length > 0) {
         await supabase.from('neighborhoods').delete().in('id', toDelete);
       }
-    }
+    } 
+    */
     return true;
   },
 
