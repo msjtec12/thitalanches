@@ -50,8 +50,8 @@ export function SystemDashboard() {
   return (
     <div className="space-y-10">
       <Tabs defaultValue="overview" className="space-y-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="bg-zinc-900/50 border border-white/5 p-1 h-10 gap-1 rounded-lg">
+        <div className="w-full overflow-x-auto pb-2 scrollbar-none">
+          <TabsList className="bg-zinc-900/50 border border-white/5 p-1 h-auto min-h-[40px] gap-1 rounded-lg inline-flex w-max min-w-full justify-start sm:w-auto">
             <TabsTrigger value="overview" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
               <DollarSign className="w-3.5 h-3.5" />
               Visão Geral

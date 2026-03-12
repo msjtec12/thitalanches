@@ -156,12 +156,12 @@ export function CashierModule() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 items-start">
         <div>
           <h2 className="text-xl font-bold tracking-tight">Fluxo de Caixa</h2>
           <p className="text-sm text-muted-foreground">Gerenciamento de aberturas, fechamentos e vendas.</p>
         </div>
-        <div className={`px-4 py-2 rounded-full border flex items-center gap-2 ${settings.isCashierOpen ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-destructive/10 border-destructive/20 text-destructive'}`}>
+        <div className={`px-4 py-2 rounded-full border flex items-center gap-2 self-start sm:self-auto ${settings.isCashierOpen ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-destructive/10 border-destructive/20 text-destructive'}`}>
           {settings.isCashierOpen ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
           <span className="text-xs font-bold uppercase tracking-wider">Caixa {settings.isCashierOpen ? 'Aberto' : 'Fechado'}</span>
         </div>
