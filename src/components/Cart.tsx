@@ -79,13 +79,19 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
     
     // Fee will be calculated based on dist
     if (dist > 12) {
-      setAddressError('Infelizmente não entregamos neste endereço. O limite máximo é de 12km da loja.');
+      setAddressError(`Desculpe, este endereço está a ${dist.toFixed(1)}km, além do nosso raio máximo de entrega (12km). Para qualquer dúvida, entre em contato conosco no WhatsApp.`);
     } else if (!lat || !lng) {
-      setAddressError('CEP encontrado, mas não conseguimos validar a distância. Verifique com o atendente.');
+      setAddressError('CEP encontrado, mas não conseguimos validar a distância. Verifique com o atendente via WhatsApp.');
     }
 
     setDeliveryInfo({...deliveryInfo, ...data, distanceKm: dist});
     setIsSearchingCep(false);
+  };
+
+  const handleSupportWhatsAppClick = () => {
+    if (settings.whatsappNumber) {
+       window.open(`https://wa.me/${formatWhatsAppNumber(settings.whatsappNumber)}`, '_blank');
+    }
   };
 
   const getEstimatedTime = () => {
@@ -445,11 +451,21 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
               </div>
 
               {addressError && (
-                <div className="bg-destructive/10 border border-destructive/20 p-2 rounded-lg flex gap-2 items-start mt-2">
-                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive font-medium leading-tight">
-                    {addressError}
-                  </p>
+                <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg flex flex-col gap-2 mt-2">
+                  <div className="flex gap-2 items-start">
+                    <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                    <p className="text-xs text-destructive font-medium leading-tight">
+                      {addressError}
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-1 border-destructive text-destructive hover:bg-destructive hover:text-white"
+                    onClick={handleSupportWhatsAppClick}
+                  >
+                    Falar no WhatsApp
+                  </Button>
                 </div>
               )}
 
