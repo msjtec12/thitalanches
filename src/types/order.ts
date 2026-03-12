@@ -48,8 +48,11 @@ export interface neighborhood {
   allowedStreets?: string[];
 }
 
+export type AddressType = 'casa' | 'apartamento' | 'outros';
+
 export interface DeliveryInfo {
   cep?: string;
+  addressType?: AddressType;
   street: string;
   number: string;
   neighborhood?: string;

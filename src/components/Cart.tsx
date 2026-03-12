@@ -40,6 +40,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
       state: '',
       complement: '',
       reference: '',
+      addressType: undefined,
       distanceKm: 0,
     };
   });
@@ -51,7 +52,8 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const [lastOrderUrl, setLastOrderUrl] = useState<string>('');
   const [customerWhatsAppUrl, setCustomerWhatsAppUrl] = useState<string>('');
 
-  const deliveryFee = pickupType === 'delivery' ? (deliveryInfo.distanceKm <= 12 ? (calculateDeliveryFee(deliveryInfo.distanceKm) || 0) : 0) : 0;
+  const baseDeliveryFee = pickupType === 'delivery' ? (deliveryInfo.distanceKm <= 12 ? (calculateDeliveryFee(deliveryInfo.distanceKm) || 0) : 0) : 0;
+  const deliveryFee = baseDeliveryFee + (pickupType === 'delivery' && deliveryInfo.addressType === 'outros' ? 0.50 : 0);
   const grandTotal = total + deliveryFee;
 
   const handleSearchCep = async () => {
@@ -187,7 +189,8 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
         ? `🚀 *ENTREGA (DELIVERY)*\n` +
           `🏠 *ENDEREÇO:* ${deliveryInfo.street}, ${deliveryInfo.number}\n` +
           (deliveryInfo.neighborhood ? `🏘️ *BAIRRO:* ${deliveryInfo.neighborhood}\n` : '') +
-          (deliveryInfo.complement ? `🏢 *COMPLEMENTO:* ${deliveryInfo.complement}\n` : '') +
+          (deliveryInfo.addressType ? `🏢 *TIPO:* ${deliveryInfo.addressType.toUpperCase()}\n` : '') +
+          (deliveryInfo.complement ? `🚪 *COMPLEMENTO:* ${deliveryInfo.complement}\n` : '') +
           (deliveryInfo.reference ? `📍 *REFERÊNCIA:* ${deliveryInfo.reference}\n` : '')
         : pickupType === 'immediate' 
           ? '🚀 *RETIRADA IMEDIATA*' 
@@ -470,6 +473,24 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
               )}
 
               <div className="space-y-2">
+                <Label>Tipo de Endereço <span className="text-destructive">*</span></Label>
+                <div className="text-xs text-muted-foreground mb-1">Taxa de R$ 0,50 adicionada para 'Outros'</div>
+                <Select 
+                  value={deliveryInfo.addressType || ''} 
+                  onValueChange={(v: any) => setDeliveryInfo({...deliveryInfo, addressType: v})}
+                >
+                  <SelectTrigger className={!deliveryInfo.addressType ? "border-destructive focus:ring-destructive" : ""}>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="casa">Casa</SelectItem>
+                    <SelectItem value="apartamento">Apartamento</SelectItem>
+                    <SelectItem value="outros">Outros (Hotel, Condomínio, Comércio, Hospital, etc)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="complement">Complemento (opcional)</Label>
                 <Input
                   id="complement"
@@ -614,7 +635,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
               className="flex-1"
               disabled={
                 (pickupType === 'scheduled' && !scheduledTime) ||
-                (pickupType === 'delivery' && (!deliveryInfo.cep || !deliveryInfo.street || !deliveryInfo.number || deliveryInfo.distanceKm > 12))
+                (pickupType === 'delivery' && (!deliveryInfo.cep || !deliveryInfo.street || !deliveryInfo.number || !deliveryInfo.addressType || deliveryInfo.distanceKm > 12))
               }
             >
               Confirmar pedido
