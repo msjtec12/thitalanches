@@ -40,6 +40,13 @@ const defaultSettings: StoreSettings = {
   neighborhoods: [],
   openingHours: [],
   schedulingInterval: 15,
+  storeCep: '14026596',
+  storeStreet: 'R. Magda Perona Frossard',
+  storeNumber: '565',
+  storeCity: 'Ribeirão Preto',
+  storeState: 'SP',
+  storeLat: -21.2185116,
+  storeLng: -47.8224098
 };
 
 export function OrderProvider({ children }: { children: ReactNode }) {
@@ -77,7 +84,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
         setProducts(dbProducts);
         setCategories(dbCategories);
-        if (dbSettings) setSettings(dbSettings);
+        if (dbSettings) {
+          setSettings({
+            ...dbSettings,
+            // Valores fixos do endereço solicitados (Substitui o que vem do banco pois a tabela pode não ter essas colunas ativas ainda)
+            storeCep: '14026596',
+            storeStreet: 'R. Magda Perona Frossard',
+            storeNumber: '565',
+            storeCity: 'Ribeirão Preto',
+            storeState: 'SP',
+            storeLat: -21.2185116,
+            storeLng: -47.8224098
+          });
+        }
 
         // 2. Conditional data fetch based on role
         const isAdmin = sessionStorage.getItem('admin_authenticated') === 'true';

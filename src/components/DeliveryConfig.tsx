@@ -45,17 +45,8 @@ export function DeliveryConfig() {
   };
 
   const handleSave = () => {
-    updateSettings({
-      ...settings,
-      storeCep: cep,
-      storeStreet: street,
-      storeNumber: number,
-      storeCity: city,
-      storeState: state,
-      storeLat: lat,
-      storeLng: lng,
-    });
-    toast({ title: 'Sucesso', description: 'Configurações de entrega por distância salvas com sucesso!' });
+    // Endereço fixado, não faz nada mas mantém pra não quebrar.
+    toast({ title: 'Aviso', description: 'O endereço de entrega foi fixado permanentemente nas configurações. Não é necessário salvar.' });
   };
 
   return (
@@ -66,7 +57,7 @@ export function DeliveryConfig() {
           Configuração de Entrega por Distância
         </CardTitle>
         <CardDescription>
-          Defina o endereço físico da loja para calcular as taxas de entrega com base na distância. O limite máximo é de 12km.
+          O endereço físico da loja para cálculo de frete por distância foi fixado permanentemente no sistema.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -75,34 +66,32 @@ export function DeliveryConfig() {
             <Label>CEP do Estabelecimento</Label>
             <div className="flex gap-2">
               <Input
-                placeholder="00000-000"
                 value={cep}
-                onChange={(e) => setCep(e.target.value)}
-                maxLength={9}
+                disabled
               />
-              <Button disabled={isLoading || cep.length < 8} onClick={handleSearchCep} variant="secondary">
+              <Button disabled variant="secondary">
                  <Search className="w-4 h-4" />
               </Button>
             </div>
           </div>
           <div className="space-y-2">
             <Label>Rua / Logradouro</Label>
-            <Input value={street} onChange={(e) => setStreet(e.target.value)} />
+            <Input value={street} disabled />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-1 space-y-2">
             <Label>Número</Label>
-            <Input value={number} onChange={(e) => setNumber(e.target.value)} />
+            <Input value={number} disabled />
           </div>
           <div className="md:col-span-1 space-y-2">
             <Label>Cidade</Label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            <Input value={city} disabled />
           </div>
           <div className="md:col-span-1 space-y-2">
             <Label>Estado (UF)</Label>
-            <Input value={state} onChange={(e) => setState(e.target.value)} maxLength={2} />
+            <Input value={state} disabled />
           </div>
         </div>
 
@@ -147,8 +136,8 @@ export function DeliveryConfig() {
           </div>
         </div>
 
-        <Button onClick={handleSave} className="w-full flex" disabled={!lat || !lng || !number}>
-          Salvar Configurações e Habilitar Entrega
+        <Button onClick={handleSave} className="w-full flex" disabled>
+          Endereço e Tabela já fixados no sistema
         </Button>
       </CardContent>
     </Card>
