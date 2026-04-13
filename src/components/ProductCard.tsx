@@ -56,7 +56,10 @@ export function ProductCard({ product }: ProductCardProps) {
       >
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-foreground">{product.name}</h3>
+            <h3 className="font-medium text-foreground">
+              {product.sortOrder ? `${product.sortOrder.toString().padStart(2, '0')}. ` : ''}
+              {product.name}
+            </h3>
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
             <p className="text-primary font-semibold mt-2">{formatPrice(product.price)}</p>
           </div>

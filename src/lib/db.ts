@@ -183,7 +183,7 @@ export const db = {
         *,
         product_extras (*)
       `)
-      .order('name');
+      .order('sort_order', { ascending: true });
     
     if (error) return [];
     
@@ -198,6 +198,7 @@ export const db = {
       image: p.image_url,
       isCombo: p.is_combo,
       comboItems: p.combo_items || [],
+      sortOrder: p.sort_order || 0,
       extras: p.product_extras.map((e: any) => ({
         id: e.id,
         name: e.name,
@@ -223,7 +224,8 @@ export const db = {
         is_active: product.isActive,
         image_url: product.image,
         is_combo: product.isCombo,
-        combo_items: product.comboItems
+        combo_items: product.comboItems,
+        sort_order: product.sortOrder
       })
       .select()
       .single();

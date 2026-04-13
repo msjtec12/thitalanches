@@ -54,7 +54,7 @@ export function ProductList({ products, categories, activeCategory, isLoading }:
   return (
     <section className="py-4">
       <div className="grid gap-3">
-        {filteredProducts.map((product) => (
+        {filteredProducts.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>

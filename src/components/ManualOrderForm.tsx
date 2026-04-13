@@ -252,13 +252,19 @@ export function ManualOrderForm() {
                   <div key={category.id}>
                     <h4 className="text-sm font-medium text-muted-foreground mb-2">{category.order.toString().padStart(2, '0')}. {category.name}</h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {products.filter(p => p.categoryId === category.id).map((product) => (
+                      {products
+                        .filter(p => p.categoryId === category.id)
+                        .sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                        .map((product) => (
                         <button
                           key={product.id}
                           onClick={() => setSelectedProduct(product)}
                           className="text-left p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
                         >
-                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="font-medium text-sm">
+                            {product.sortOrder ? `${product.sortOrder.toString().padStart(2, '0')}. ` : ''}
+                            {product.name}
+                          </p>
                           <p className="text-primary text-sm">{formatPrice(product.price)}</p>
                         </button>
                       ))}

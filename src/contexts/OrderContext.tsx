@@ -265,6 +265,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         image: savedProduct.image_url,
         isCombo: savedProduct.is_combo,
         comboItems: savedProduct.combo_items || [],
+        sortOrder: savedProduct.sort_order || 0,
       };
       setProducts(prev => [...prev, newProductWithRealId]);
     }

@@ -10,6 +10,7 @@ export interface Product {
   extras?: ProductExtra[];
   isCombo?: boolean;
   comboItems?: string[]; // IDs of products that are part of this combo
+  sortOrder: number;
 }
 
 export interface ProductExtra {

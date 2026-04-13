@@ -180,7 +180,8 @@ export function MenuManagement() {
       costPrice: 0,
       isActive: true,
       categoryId: categories[0]?.id || '',
-      extras: []
+      extras: [],
+      sortOrder: products.length + 1
     };
     setEditingProduct(newProduct);
     setIsSheetOpen(true);
@@ -247,6 +248,7 @@ export function MenuManagement() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">#</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Preço</TableHead>
@@ -255,8 +257,16 @@ export function MenuManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
+            {products.slice().sort((a,b) => {
+              if (a.categoryId !== b.categoryId) {
+                const catA = categories.findIndex(c => c.id === a.categoryId);
+                const catB = categories.findIndex(c => c.id === b.categoryId);
+                return catA - catB;
+              }
+              return (a.sortOrder || 0) - (b.sortOrder || 0);
+            }).map((product) => (
               <TableRow key={product.id}>
+                <TableCell className="font-mono text-[10px] text-muted-foreground">#{product.sortOrder}</TableCell>
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell>
                   {categories.find(c => c.id === product.categoryId)?.name}
@@ -302,15 +312,27 @@ export function MenuManagement() {
                 <div className="p-6 space-y-8">
                   {/* Basic Info */}
                   <div className="space-y-5">
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome do Produto</Label>
-                      <Input 
-                        id="name" 
-                        placeholder="Ex: X-Salada Especial"
-                        value={editingProduct.name} 
-                        onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
-                        className="bg-secondary/20 border-border/50 focus:border-primary/50 transition-all"
-                      />
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="col-span-1 flex flex-col gap-1.5">
+                        <Label htmlFor="sortOrder" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Posição</Label>
+                        <Input 
+                          id="sortOrder" 
+                          type="number"
+                          value={editingProduct.sortOrder} 
+                          onChange={(e) => setEditingProduct({...editingProduct, sortOrder: Number(e.target.value)})}
+                          className="bg-secondary/20 border-border/50 focus:border-primary/50 transition-all font-bold"
+                        />
+                      </div>
+                      <div className="col-span-3 flex flex-col gap-1.5">
+                        <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome do Produto</Label>
+                        <Input 
+                          id="name" 
+                          placeholder="Ex: X-Salada Especial"
+                          value={editingProduct.name} 
+                          onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                          className="bg-secondary/20 border-border/50 focus:border-primary/50 transition-all"
+                        />
+                      </div>
                     </div>
                     
                     <div className="flex flex-col gap-1.5">
