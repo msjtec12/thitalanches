@@ -163,7 +163,11 @@ export const db = {
   async updateCategory(category: Category): Promise<void> {
     await supabase
       .from('categories')
-      .update({ name: category.name, photo_url: category.photoUrl || null })
+      .update({ 
+        name: category.name, 
+        photo_url: category.photoUrl || null,
+        sort_order: category.order
+      })
       .eq('id', category.id);
   },
 

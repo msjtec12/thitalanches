@@ -89,13 +89,13 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
           <div className="relative h-full container flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
-                Categoria selecionada
+                Categoria {activecat.order.toString().padStart(2, '0')}
               </span>
               <h2
                 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white leading-none"
                 style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}
               >
-                {activecat.name}
+                {activecat.order.toString().padStart(2, '0')}. {activecat.name}
               </h2>
             </div>
 
@@ -125,8 +125,9 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
     <section className="bg-background py-4 border-b border-border">
       <div className="container">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-          {categories.map((category) => {
+          {categories.slice().sort((a,b) => a.order - b.order).map((category) => {
             const imgUrl = getCategoryImage(category);
+            const displayIndex = category.order.toString().padStart(2, '0');
             return (
               <button
                 key={category.id}
@@ -164,7 +165,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
                     className="block text-[10px] sm:text-xs font-bold uppercase tracking-wide leading-tight text-left text-white group-hover:text-primary transition-colors"
                     style={{ textShadow: '0 1px 6px rgba(0,0,0,1)' }}
                   >
-                    {category.name}
+                    {displayIndex}. {category.name}
                   </span>
                 </div>
               </button>

@@ -26,6 +26,7 @@ function CategoryEditRow({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(category.name);
+  const [order, setOrder] = useState(category.order);
   const [previewUrl, setPreviewUrl] = useState<string>(category.photoUrl || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -49,7 +50,12 @@ function CategoryEditRow({
       if (uploaded) finalPhotoUrl = uploaded;
     }
 
-    onUpdate({ ...category, name: name.trim() || category.name, photoUrl: finalPhotoUrl });
+    onUpdate({ 
+      ...category, 
+      name: name.trim() || category.name, 
+      order: Number(order) || category.order,
+      photoUrl: finalPhotoUrl 
+    });
     setSelectedFile(null);
     setIsEditing(false);
     setIsUploading(false);
@@ -69,7 +75,10 @@ function CategoryEditRow({
           {!currentPhoto && <ImageIcon className="w-4 h-4 text-muted-foreground" />}
         </div>
 
-        <span className="flex-1 text-sm font-medium truncate">{category.name}</span>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-background">#{category.order}</Badge>
+          <span className="text-sm font-medium truncate">{category.name}</span>
+        </div>
 
         <Button
           variant="ghost" size="icon"
@@ -90,16 +99,24 @@ function CategoryEditRow({
       {/* Painel de edição expansível */}
       {isEditing && (
         <div className="border-t border-border/40 p-3 space-y-3 bg-background/60">
-          {/* Nome */}
-          <div className="space-y-1">
-            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="h-8" />
+          <div className="grid grid-cols-4 gap-3">
+             {/* Ordem */}
+            <div className="space-y-1 col-span-1">
+              <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Posição</Label>
+              <Input type="number" value={order} onChange={e => setOrder(Number(e.target.value))} className="h-8" />
+            </div>
+
+            {/* Nome */}
+            <div className="space-y-1 col-span-3">
+              <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} className="h-8" />
+            </div>
           </div>
 
           {/* Upload de imagem */}
           <div className="space-y-2">
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Foto da categoria</Label>
-
+            
             {/* Preview */}
             {currentPhoto && (
               <img
@@ -115,7 +132,7 @@ function CategoryEditRow({
               <ImageIcon className="w-4 h-4" />
               <span>{selectedFile ? selectedFile.name : 'Selecionar imagem...'}</span>
               <input
-                ref={el => { fileInputRef[1](el); }}
+                ref={el => { if (el) fileInputRef[1](el); }}
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -129,7 +146,7 @@ function CategoryEditRow({
           </div>
 
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); }}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); setOrder(category.order); }}>Cancelar</Button>
             <Button size="sm" className="gap-1" onClick={handleSave} disabled={isUploading}>
               {isUploading ? <><span className="animate-spin">⏳</span> Enviando...</> : <><Check className="w-3 h-3" /> Salvar</>}
             </Button>
@@ -477,13 +494,17 @@ export function MenuManagement() {
 
             {/* Lista de categorias com edição */}
             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-              {categories.map(category => (
-                <CategoryEditRow
-                  key={category.id}
-                  category={category}
-                  onUpdate={updateCategory}
-                  onDelete={deleteCategory}
-                />
+              {categories.slice().sort((a,b) => a.order - b.order).map((category) => (
+                <div key={category.id} className="relative">
+                  <span className="absolute -left-6 top-3 text-[10px] font-bold text-muted-foreground/50">
+                    {category.order.toString().padStart(2, '0')}
+                  </span>
+                  <CategoryEditRow
+                    category={category}
+                    onUpdate={updateCategory}
+                    onDelete={deleteCategory}
+                  />
+                </div>
               ))}
             </div>
           </div>
