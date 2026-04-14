@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
 import { Product, ProductExtra, Category } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -257,38 +257,59 @@ export function MenuManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {[...products].sort((a,b) => {
-              const catIdxA = categories.findIndex(c => c.id === a.categoryId);
-              const catIdxB = categories.findIndex(c => c.id === b.categoryId);
-              if (catIdxA !== catIdxB) return catIdxA - catIdxB;
-              const orderA = Number(a.sortOrder) || 0;
-              const orderB = Number(b.sortOrder) || 0;
-              if (orderA !== orderB) return orderA - orderB;
-              return a.name.localeCompare(b.name);
-            }).map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-mono text-[10px] text-muted-foreground">#{product.sortOrder}</TableCell>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>
-                  {categories.find(c => c.id === product.categoryId)?.name}
-                </TableCell>
-                <TableCell>{formatPrice(product.price)}</TableCell>
-                <TableCell>
-                  <Switch 
-                    checked={product.isActive} 
-                    onCheckedChange={(checked) => updateProduct({ ...product, isActive: checked })}
-                  />
-                </TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => deleteProduct(product.id)} className="text-destructive hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {categories.slice().sort((a,b) => a.order - b.order).map((category) => {
+              const categoryProducts = products
+                .filter(p => p.categoryId === category.id)
+                .sort((a,b) => {
+                  const orderA = Number(a.sortOrder) || 0;
+                  const orderB = Number(b.sortOrder) || 0;
+                  if (orderA !== orderB) return orderA - orderB;
+                  return a.name.localeCompare(b.name);
+                });
+
+              if (categoryProducts.length === 0) return null;
+
+              return (
+                <Fragment key={category.id}>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableCell colSpan={6} className="py-2.5 px-4 bg-secondary/20">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-transparent">
+                          {category.order.toString().padStart(2, '0')}
+                        </Badge>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                          {category.name} ({categoryProducts.length} itens)
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {categoryProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-mono text-[10px] text-muted-foreground">#{product.sortOrder}</TableCell>
+                      <TableCell className="font-medium text-sm">{product.name}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground italic">
+                        {category.name}
+                      </TableCell>
+                      <TableCell className="text-sm font-semibold">{formatPrice(product.price)}</TableCell>
+                      <TableCell>
+                        <Switch 
+                          checked={product.isActive} 
+                          onCheckedChange={(checked) => updateProduct({ ...product, isActive: checked })}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(product)} className="h-8 w-8">
+                          <Edit2 className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteProduct(product.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </Fragment>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
