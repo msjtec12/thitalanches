@@ -54,7 +54,12 @@ export function ProductList({ products, categories, activeCategory, isLoading }:
   return (
     <section className="py-4">
       <div className="grid gap-3">
-        {filteredProducts.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((product) => (
+        {[...filteredProducts].sort((a,b) => {
+          const orderA = Number(a.sortOrder) || 0;
+          const orderB = Number(b.sortOrder) || 0;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.name.localeCompare(b.name);
+        }).map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>

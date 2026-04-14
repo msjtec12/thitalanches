@@ -252,9 +252,14 @@ export function ManualOrderForm() {
                   <div key={category.id}>
                     <h4 className="text-sm font-medium text-muted-foreground mb-2">{category.order.toString().padStart(2, '0')}. {category.name}</h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {products
+                      {[...products]
                         .filter(p => p.categoryId === category.id)
-                        .sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                        .sort((a,b) => {
+                          const orderA = Number(a.sortOrder) || 0;
+                          const orderB = Number(b.sortOrder) || 0;
+                          if (orderA !== orderB) return orderA - orderB;
+                          return a.name.localeCompare(b.name);
+                        })
                         .map((product) => (
                         <button
                           key={product.id}

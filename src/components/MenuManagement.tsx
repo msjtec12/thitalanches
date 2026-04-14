@@ -257,13 +257,14 @@ export function MenuManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.slice().sort((a,b) => {
-              if (a.categoryId !== b.categoryId) {
-                const catA = categories.findIndex(c => c.id === a.categoryId);
-                const catB = categories.findIndex(c => c.id === b.categoryId);
-                return catA - catB;
-              }
-              return (a.sortOrder || 0) - (b.sortOrder || 0);
+            {[...products].sort((a,b) => {
+              const catIdxA = categories.findIndex(c => c.id === a.categoryId);
+              const catIdxB = categories.findIndex(c => c.id === b.categoryId);
+              if (catIdxA !== catIdxB) return catIdxA - catIdxB;
+              const orderA = Number(a.sortOrder) || 0;
+              const orderB = Number(b.sortOrder) || 0;
+              if (orderA !== orderB) return orderA - orderB;
+              return a.name.localeCompare(b.name);
             }).map((product) => (
               <TableRow key={product.id}>
                 <TableCell className="font-mono text-[10px] text-muted-foreground">#{product.sortOrder}</TableCell>
