@@ -27,6 +27,7 @@ function CategoryEditRow({
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(category.name);
   const [order, setOrder] = useState(category.order);
+  const [isActive, setIsActive] = useState(category.isActive ?? true);
   const [previewUrl, setPreviewUrl] = useState<string>(category.photoUrl || '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -54,6 +55,7 @@ function CategoryEditRow({
       ...category, 
       name: name.trim() || category.name, 
       order: Number(order) || category.order,
+      isActive: isActive,
       photoUrl: finalPhotoUrl 
     });
     setSelectedFile(null);
@@ -77,7 +79,12 @@ function CategoryEditRow({
 
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-background">#{category.order}</Badge>
-          <span className="text-sm font-medium truncate">{category.name}</span>
+          <span className={`text-sm font-medium truncate ${!category.isActive ? 'text-muted-foreground line-through opacity-50' : ''}`}>
+            {category.name}
+          </span>
+          {!category.isActive && (
+            <Badge variant="secondary" className="h-4 px-1 text-[8px] bg-destructive/10 text-destructive border-destructive/20 uppercase font-black">Bloqueada</Badge>
+          )}
         </div>
 
         <Button
@@ -106,10 +113,15 @@ function CategoryEditRow({
               <Input type="number" value={order} onChange={e => setOrder(Number(e.target.value))} className="h-8" />
             </div>
 
-            {/* Nome */}
-            <div className="space-y-1 col-span-3">
+            <div className="space-y-1 col-span-2">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome</Label>
               <Input value={name} onChange={e => setName(e.target.value)} className="h-8" />
+            </div>
+
+            {/* Status */}
+            <div className="space-y-1 col-span-1 flex flex-col items-center justify-end pb-1">
+              <Label className="text-[8px] uppercase tracking-tight text-muted-foreground mb-1">Status</Label>
+              <Switch checked={isActive} onCheckedChange={setIsActive} />
             </div>
           </div>
 
@@ -146,7 +158,7 @@ function CategoryEditRow({
           </div>
 
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); setOrder(category.order); }}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); setOrder(category.order); setIsActive(category.isActive ?? true); }}>Cancelar</Button>
             <Button size="sm" className="gap-1" onClick={handleSave} disabled={isUploading}>
               {isUploading ? <><span className="animate-spin">⏳</span> Enviando...</> : <><Check className="w-3 h-3" /> Salvar</>}
             </Button>
@@ -224,7 +236,8 @@ export function MenuManagement() {
     addCategory({
       id: `cat-${Date.now()}`,
       name: newCategoryName.trim(),
-      order: categories.length + 1
+      order: categories.length + 1,
+      isActive: true
     });
     setNewCategoryName('');
   };

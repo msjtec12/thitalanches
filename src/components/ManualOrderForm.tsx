@@ -248,7 +248,7 @@ export function ManualOrderForm() {
             {/* Product selector */}
             {!selectedProduct ? (
               <div className="space-y-3">
-                {categories.slice().sort((a,b) => a.order - b.order).map((category) => (
+                {categories.filter(c => c.isActive !== false).slice().sort((a,b) => a.order - b.order).map((category) => (
                   <div key={category.id}>
                     <h4 className="text-sm font-medium text-muted-foreground mb-2">{category.order.toString().padStart(2, '0')}. {category.name}</h4>
                     <div className="grid grid-cols-2 gap-2">

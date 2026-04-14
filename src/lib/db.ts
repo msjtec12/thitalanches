@@ -131,6 +131,7 @@ export const db = {
       name: c.name,
       order: c.sort_order,
       photoUrl: c.photo_url || undefined,
+      isActive: c.is_active ?? true,
     }));
   },
 
@@ -141,7 +142,7 @@ export const db = {
       .select()
       .single();
     if (error) { console.error('Erro ao criar categoria:', error); return null; }
-    return { id: data.id, name: data.name, order: data.sort_order, photoUrl: data.photo_url || undefined };
+    return { id: data.id, name: data.name, order: data.sort_order, photoUrl: data.photo_url || undefined, isActive: data.is_active ?? true };
   },
 
   async uploadCategoryImage(file: File): Promise<string | null> {
@@ -166,7 +167,8 @@ export const db = {
       .update({ 
         name: category.name, 
         photo_url: category.photoUrl || null,
-        sort_order: category.order
+        sort_order: category.order,
+        is_active: category.isActive
       })
       .eq('id', category.id);
   },

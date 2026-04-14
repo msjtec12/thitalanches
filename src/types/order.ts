@@ -25,6 +25,7 @@ export interface Category {
   name: string;
   order: number;
   photoUrl?: string;
+  isActive: boolean;
 }
 
 export interface CartItem {

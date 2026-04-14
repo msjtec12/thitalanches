@@ -125,7 +125,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
     <section className="bg-background py-4 border-b border-border">
       <div className="container">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-          {categories.slice().sort((a,b) => a.order - b.order).map((category) => {
+          {categories.filter(c => c.isActive !== false).slice().sort((a,b) => a.order - b.order).map((category) => {
             const imgUrl = getCategoryImage(category);
             const displayIndex = category.order.toString().padStart(2, '0');
             return (
