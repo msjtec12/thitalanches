@@ -284,37 +284,44 @@ export function MenuManagement() {
 
               return (
                 <Fragment key={category.id}>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableCell colSpan={6} className="py-2.5 px-4 bg-secondary/20">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-primary text-primary-foreground border-transparent">
+                  <TableRow className="bg-muted/50 hover:bg-muted/50 border-y-2 border-border/10">
+                    <TableCell colSpan={6} className="py-2 px-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white shadow-sm shadow-primary/20 shrink-0">
                           {category.order.toString().padStart(2, '0')}
-                        </Badge>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                          {category.name} ({categoryProducts.length} itens)
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-tighter text-zinc-600 dark:text-zinc-400">
+                          {category.name} <span className="text-muted-foreground/60 font-medium ml-1">({categoryProducts.length} itens)</span>
                         </span>
                       </div>
                     </TableCell>
                   </TableRow>
                   {categoryProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-mono text-[10px] text-muted-foreground">#{product.sortOrder}</TableCell>
-                      <TableCell className="font-medium text-sm">{product.name}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground italic">
+                    <TableRow key={product.id} className="hover:bg-secondary/5 transition-colors">
+                      <TableCell className="font-mono text-[10px] text-muted-foreground/60 italic border-l-2 border-transparent">
+                        #{product.sortOrder.toString().padStart(2, '0')}
+                      </TableCell>
+                      <TableCell className="font-bold text-sm uppercase tracking-tight py-4">
+                        {product.name}
+                      </TableCell>
+                      <TableCell className="text-[10px] text-muted-foreground italic font-medium">
                         {category.name}
                       </TableCell>
-                      <TableCell className="text-sm font-semibold">{formatPrice(product.price)}</TableCell>
+                      <TableCell className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                        {formatPrice(product.price)}
+                      </TableCell>
                       <TableCell>
                         <Switch 
                           checked={product.isActive} 
                           onCheckedChange={(checked) => updateProduct({ ...product, isActive: checked })}
+                          className="data-[state=checked]:bg-primary"
                         />
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(product)} className="h-8 w-8">
-                          <Edit2 className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(product)} className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-all">
+                          <Edit2 className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteProduct(product.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors">
+                        <Button variant="ghost" size="icon" onClick={() => deleteProduct(product.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-all">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>
