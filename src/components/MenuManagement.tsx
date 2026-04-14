@@ -540,36 +540,54 @@ export function MenuManagement() {
       </Sheet>
 
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Categorias</DialogTitle>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden bg-background border-border shadow-2xl">
+          <DialogHeader className="p-6 border-b border-border bg-secondary/5">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Grid2X2 className="w-4 h-4 text-primary" />
+              </div>
+              Gerenciar Categorias
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            {/* Adicionar nova */}
-            <div className="flex gap-2">
-              <Input
-                placeholder="Nome da nova categoria"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-              />
-              <Button onClick={handleAddCategory}>Adicionar</Button>
-            </div>
-
-            {/* Lista de categorias com edição */}
-            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-              {categories.slice().sort((a,b) => a.order - b.order).map((category) => (
-                <div key={category.id} className="relative">
-                  <span className="absolute -left-6 top-3 text-[10px] font-bold text-muted-foreground/50">
-                    {category.order.toString().padStart(2, '0')}
-                  </span>
-                  <CategoryEditRow
-                    category={category}
-                    onUpdate={updateCategory}
-                    onDelete={deleteCategory}
+          
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="p-6 space-y-6">
+              {/* Adicionar nova */}
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Nova Categoria</Label>
+                <div className="flex gap-2 p-1.5 bg-secondary/20 rounded-xl border border-border/50 focus-within:border-primary/50 transition-all">
+                  <Input
+                    placeholder="Ex: Bebidas, Sobremesas..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    className="border-none bg-transparent focus-visible:ring-0 shadow-none h-10 font-medium"
                   />
+                  <Button onClick={handleAddCategory} className="shadow-lg shadow-primary/20 px-6 font-bold uppercase text-xs tracking-wider">
+                    Adicionar
+                  </Button>
                 </div>
-              ))}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Categorias Existentes</Label>
+                  <span className="text-[10px] text-muted-foreground italic">{categories.length} cadastradas</span>
+                </div>
+                
+                <ScrollArea className="h-[400px] pr-4 -mr-4">
+                  <div className="space-y-3 pb-4">
+                    {categories.slice().sort((a,b) => a.order - b.order).map((category) => (
+                      <CategoryEditRow
+                        key={category.id}
+                        category={category}
+                        onUpdate={updateCategory}
+                        onDelete={deleteCategory}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </div>
         </DialogContent>
