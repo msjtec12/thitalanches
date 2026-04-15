@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Minus, X, ShoppingCart, Check, AlertTriangle } from 'lucide-react';
@@ -278,53 +277,93 @@ export function ManualOrderForm() {
                 ))}
               </div>
             ) : (
-              <div className="space-y-4 p-4 bg-secondary rounded-lg">
+              <div className="space-y-4 p-4 bg-secondary/50 rounded-xl border border-border/50">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-medium">{selectedProduct.name}</h4>
-                    <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
-                    <p className="text-primary font-semibold mt-1">{formatPrice(selectedProduct.price)}</p>
+                    <h4 className="font-semibold text-base">{selectedProduct.name}</h4>
+                    <p className="text-sm text-muted-foreground mt-0.5">{selectedProduct.description}</p>
+                    <p className="text-primary font-bold text-lg mt-1">{formatPrice(selectedProduct.price)}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={resetProductSelection}>
+                  <Button variant="ghost" size="icon" onClick={resetProductSelection} className="hover:bg-destructive/10 hover:text-destructive">
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
 
-                {selectedProduct.extras && selectedProduct.extras.length > 0 && (
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium">Adicionais</h5>
-                    {selectedProduct.extras.map((extra) => (
-                      <label key={extra.id} className="flex items-center justify-between p-2 bg-background rounded cursor-pointer">
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            checked={productExtras.some(e => e.id === extra.id)}
-                            onCheckedChange={() => toggleExtra(extra)}
-                          />
-                          <span className="text-sm">{extra.name}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">+{formatPrice(extra.price)}</span>
-                      </label>
-                    ))}
+                {/* ── Complementos / Adicionais ── */}
+                {selectedProduct.extras && selectedProduct.extras.filter(e => e.isActive !== false).length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2">
+                        Complementos
+                      </span>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <div className="space-y-2">
+                      {selectedProduct.extras.filter(e => e.isActive !== false).map((extra) => {
+                        const isSelected = productExtras.some(e => e.id === extra.id);
+                        return (
+                          <button
+                            key={extra.id}
+                            type="button"
+                            onClick={() => toggleExtra(extra)}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-150 text-left
+                              ${isSelected
+                                ? 'border-primary bg-primary/8 shadow-sm shadow-primary/10'
+                                : 'border-border bg-background hover:border-primary/30 hover:bg-secondary/60'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
+                                ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}
+                              >
+                                {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                              </div>
+                              <span className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
+                                {extra.name}
+                              </span>
+                            </div>
+                            <span className={`text-sm font-semibold flex-shrink-0 ml-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
+                              +{formatPrice(extra.price)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {productExtras.length > 0 && (
+                      <p className="text-xs text-muted-foreground px-1">
+                        <span className="font-semibold text-primary">{productExtras.length}</span> complemento{productExtras.length > 1 ? 's' : ''}: {productExtras.map(e => e.name).join(', ')}
+                      </p>
+                    )}
                   </div>
                 )}
 
-                <Input
-                  placeholder="Observação do item"
-                  value={productObservation}
-                  onChange={(e) => setProductObservation(e.target.value)}
-                />
+                {/* ── Observação ── */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Observação do item</span>
+                  <Input
+                    placeholder="Ex: Sem cebola, bem passado..."
+                    value={productObservation}
+                    onChange={(e) => setProductObservation(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => setProductQuantity(Math.max(1, productQuantity - 1))}>
+                {/* ── Quantidade + Adicionar ── */}
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-2" onClick={() => setProductQuantity(Math.max(1, productQuantity - 1))}>
                       <Minus className="w-4 h-4" />
                     </Button>
-                    <span className="w-8 text-center">{productQuantity}</span>
-                    <Button variant="outline" size="icon" onClick={() => setProductQuantity(productQuantity + 1)}>
+                    <span className="w-10 text-center font-bold text-lg">{productQuantity}</span>
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-2" onClick={() => setProductQuantity(productQuantity + 1)}>
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
-                  <Button onClick={addItem}>Adicionar</Button>
+                  <Button onClick={addItem} className="gap-2 shadow-lg shadow-primary/20 font-bold">
+                    <Plus className="w-4 h-4" />
+                    Adicionar {formatPrice((selectedProduct.price + productExtras.reduce((s, e) => s + e.price, 0)) * productQuantity)}
+                  </Button>
                 </div>
               </div>
             )}
