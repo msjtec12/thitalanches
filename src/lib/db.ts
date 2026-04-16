@@ -122,14 +122,35 @@ export const db = {
 
   // Categories
   async getCategories(): Promise<Category[]> {
-    const { data, error } = await supabase
+    // Try with category_extras join first
+    let { data, error } = await supabase
       .from('categories')
       .select(`
         *,
         category_extras (*)
       `)
       .order('sort_order');
-    return error ? [] : data.map(c => ({
+    
+    // Fallback: if category_extras table doesn't exist yet, query without join
+    if (error) {
+      const fallback = await supabase
+        .from('categories')
+        .select('*')
+        .order('sort_order');
+      data = fallback.data;
+      error = fallback.error;
+      if (error) return [];
+      return (data || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        order: c.sort_order,
+        photoUrl: c.photo_url || undefined,
+        isActive: c.is_active ?? true,
+        extras: []
+      }));
+    }
+
+    return data.map(c => ({
       id: c.id,
       name: c.name,
       order: c.sort_order,
