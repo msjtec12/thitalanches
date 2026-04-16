@@ -289,8 +289,12 @@ export function ManualOrderForm() {
                   </Button>
                 </div>
 
-                {/* ── Complementos / Adicionais ── */}
-                {selectedProduct.extras && selectedProduct.extras.filter(e => e.isActive !== false).length > 0 && (
+                {/* ── Complementos / Adicionais (da categoria) ── */}
+                {(() => {
+                  const cat = categories.find(c => c.id === selectedProduct.categoryId);
+                  const catExtras = (cat?.extras || []).filter(e => e.isActive !== false);
+                  if (catExtras.length === 0) return null;
+                  return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-px bg-border" />
@@ -300,7 +304,7 @@ export function ManualOrderForm() {
                       <div className="flex-1 h-px bg-border" />
                     </div>
                     <div className="space-y-2">
-                      {selectedProduct.extras.filter(e => e.isActive !== false).map((extra) => {
+                      {catExtras.map((extra) => {
                         const isSelected = productExtras.some(e => e.id === extra.id);
                         return (
                           <button
@@ -336,7 +340,8 @@ export function ManualOrderForm() {
                       </p>
                     )}
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* ── Observação ── */}
                 <div className="space-y-1.5">

@@ -7,18 +7,20 @@ export interface Product {
   isActive: boolean;
   categoryId: string;
   image?: string;
-  extras?: ProductExtra[];
   isCombo?: boolean;
   comboItems?: string[]; // IDs of products that are part of this combo
   sortOrder: number;
 }
 
-export interface ProductExtra {
+export interface CategoryExtra {
   id: string;
   name: string;
   price: number;
   isActive: boolean;
 }
+
+// Alias for backward compatibility in cart/order serialization
+export type ProductExtra = CategoryExtra;
 
 export interface Category {
   id: string;
@@ -26,6 +28,7 @@ export interface Category {
   order: number;
   photoUrl?: string;
   isActive: boolean;
+  extras?: CategoryExtra[];
 }
 
 export interface CartItem {

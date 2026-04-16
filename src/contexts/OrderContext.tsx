@@ -328,6 +328,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const updateCategory = async (updatedCategory: Category) => {
     setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
     await db.updateCategory(updatedCategory);
+    // Save category extras
+    if (updatedCategory.extras) {
+      await db.saveCategoryExtras(updatedCategory.id, updatedCategory.extras);
+    }
   };
 
   const deleteCategory = async (categoryId: string) => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Product, ProductExtra } from '@/types/order';
 import { useCart } from '@/contexts/CartContext';
+import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Minus, Check, ChevronRight, UtensilsCrossed } from 'lucide-react';
@@ -18,12 +19,15 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const { categories } = useOrders();
   const [isOpen, setIsOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
   const [observation, setObservation] = useState('');
 
-  const activeExtras = (product.extras || []).filter(e => e.isActive !== false);
+  // Get extras from the product's category
+  const category = categories.find(c => c.id === product.categoryId);
+  const activeExtras = (category?.extras || []).filter(e => e.isActive !== false);
   const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.price, 0);
   const itemTotal = (product.price + extrasTotal) * quantity;
 

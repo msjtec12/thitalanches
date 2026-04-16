@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, Category, Order, StoreSettings, neighborhood, CashierLog } from '@/types/order';
+import { Product, Category, CategoryExtra, Order, StoreSettings, neighborhood, CashierLog } from '@/types/order';
 
 export const db = {
   // Settings
@@ -124,7 +124,10 @@ export const db = {
   async getCategories(): Promise<Category[]> {
     const { data, error } = await supabase
       .from('categories')
-      .select('*')
+      .select(`
+        *,
+        category_extras (*)
+      `)
       .order('sort_order');
     return error ? [] : data.map(c => ({
       id: c.id,
@@ -132,6 +135,12 @@ export const db = {
       order: c.sort_order,
       photoUrl: c.photo_url || undefined,
       isActive: c.is_active ?? true,
+      extras: (c.category_extras || []).map((e: any) => ({
+        id: e.id,
+        name: e.name,
+        price: e.price,
+        isActive: e.is_active ?? true
+      }))
     }));
   },
 
@@ -174,17 +183,46 @@ export const db = {
   },
 
   async deleteCategory(categoryId: string): Promise<void> {
+    // Delete category extras first
+    await supabase.from('category_extras').delete().eq('category_id', categoryId);
     await supabase.from('categories').delete().eq('id', categoryId);
+  },
+
+  // Category Extras
+  async saveCategoryExtras(categoryId: string, extras: CategoryExtra[]): Promise<void> {
+    // Get existing extras for this category
+    const { data: existing } = await supabase
+      .from('category_extras')
+      .select('id')
+      .eq('category_id', categoryId);
+    
+    const existingIds = (existing || []).map(e => e.id);
+    const newIds = extras.filter(e => !e.id.startsWith('extra-')).map(e => e.id);
+    const toDelete = existingIds.filter(id => !newIds.includes(id));
+    
+    // Delete removed extras
+    if (toDelete.length > 0) {
+      await supabase.from('category_extras').delete().in('id', toDelete);
+    }
+    
+    // Upsert all current extras
+    for (const extra of extras) {
+      const { error } = await supabase.from('category_extras').upsert({
+        id: extra.id.startsWith('extra-') ? undefined : extra.id,
+        category_id: categoryId,
+        name: extra.name,
+        price: extra.price,
+        is_active: extra.isActive
+      });
+      if (error) console.error('Erro ao salvar adicional de categoria:', error);
+    }
   },
 
   // Products
   async getProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
-      .select(`
-        *,
-        product_extras (*)
-      `)
+      .select('*')
       .order('sort_order', { ascending: true });
     
     if (error) return [];
@@ -201,12 +239,6 @@ export const db = {
       isCombo: p.is_combo,
       comboItems: p.combo_items || [],
       sortOrder: p.sort_order || 0,
-      extras: p.product_extras.map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        price: e.price,
-        isActive: e.is_active
-      }))
     }));
   },
 
@@ -235,23 +267,6 @@ export const db = {
     if (pError) {
       console.error('Erro ao salvar produto:', pError);
       throw pError;
-    }
-
-    // Use the real database ID (crucial for new products whose temp id starts with 'prod-')
-    const realProductId = savedProduct.id;
-
-    // 2. Handle extras — link them to the real product ID
-    if (product.extras && product.extras.length > 0) {
-      for (const extra of product.extras) {
-        const { error: eError } = await supabase.from('product_extras').upsert({
-          id: extra.id.startsWith('extra-') ? undefined : extra.id,
-          product_id: realProductId,
-          name: extra.name,
-          price: extra.price,
-          is_active: extra.isActive
-        });
-        if (eError) console.error('Erro ao salvar adicional:', eError);
-      }
     }
 
     return savedProduct;

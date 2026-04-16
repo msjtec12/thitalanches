@@ -1,6 +1,6 @@
 import { useState, Fragment } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
-import { Product, ProductExtra, Category } from '@/types/order';
+import { Product, CategoryExtra, Category } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -32,6 +32,7 @@ function CategoryEditRow({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useState<HTMLInputElement | null>(null);
+  const [extras, setExtras] = useState<CategoryExtra[]>(category.extras || []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,7 +57,8 @@ function CategoryEditRow({
       name: name.trim() || category.name, 
       order: Number(order) || category.order,
       isActive: isActive,
-      photoUrl: finalPhotoUrl 
+      photoUrl: finalPhotoUrl,
+      extras: extras
     });
     setSelectedFile(null);
     setIsEditing(false);
@@ -157,8 +159,60 @@ function CategoryEditRow({
             )}
           </div>
 
+          {/* Extras / Adicionais da Categoria */}
+          <div className="space-y-3 pt-3 border-t border-border/40">
+            <div className="flex justify-between items-center">
+              <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Adicionais / Opcionais</Label>
+              <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={() => {
+                setExtras(prev => [...prev, { id: `extra-${Date.now()}`, name: '', price: 0, isActive: true }]);
+              }}>
+                <Plus className="w-3 h-3" />
+                Add
+              </Button>
+            </div>
+            
+            {extras.length === 0 && (
+              <p className="text-[10px] text-muted-foreground/60 italic text-center py-2">Nenhum adicional cadastrado para esta categoria.</p>
+            )}
+
+            <div className="space-y-2">
+              {extras.map((extra) => (
+                <div key={extra.id} className="flex gap-2 items-center bg-secondary/30 p-2 rounded-lg border border-border/50">
+                  <Input 
+                    placeholder="Nome do adicional" 
+                    value={extra.name} 
+                    onChange={(e) => {
+                      setExtras(prev => prev.map(ex => ex.id === extra.id ? {...ex, name: e.target.value} : ex));
+                    }}
+                    className="h-7 text-xs flex-1"
+                  />
+                  <Input 
+                    placeholder="Preço" 
+                    type="number" 
+                    value={extra.price} 
+                    onChange={(e) => {
+                      setExtras(prev => prev.map(ex => ex.id === extra.id ? {...ex, price: Number(e.target.value)} : ex));
+                    }}
+                    className="h-7 text-xs w-20"
+                  />
+                  <Switch 
+                    checked={extra.isActive} 
+                    onCheckedChange={(checked) => {
+                      setExtras(prev => prev.map(ex => ex.id === extra.id ? {...ex, isActive: checked} : ex));
+                    }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => {
+                    setExtras(prev => prev.filter(ex => ex.id !== extra.id));
+                  }}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); setOrder(category.order); setIsActive(category.isActive ?? true); }}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); setOrder(category.order); setIsActive(category.isActive ?? true); setExtras(category.extras || []); }}>Cancelar</Button>
             <Button size="sm" className="gap-1" onClick={handleSave} disabled={isUploading}>
               {isUploading ? <><span className="animate-spin">⏳</span> Enviando...</> : <><Check className="w-3 h-3" /> Salvar</>}
             </Button>
@@ -179,7 +233,7 @@ export function MenuManagement() {
 
 
   const handleEdit = (product: Product) => {
-    setEditingProduct({ ...product, extras: product.extras ? [...product.extras] : [] });
+    setEditingProduct({ ...product });
     setIsSheetOpen(true);
   };
 
@@ -192,7 +246,6 @@ export function MenuManagement() {
       costPrice: 0,
       isActive: true,
       categoryId: categories[0]?.id || '',
-      extras: [],
       sortOrder: products.length + 1
     };
     setEditingProduct(newProduct);
@@ -207,29 +260,7 @@ export function MenuManagement() {
     }
   };
 
-  const handleAddExtra = () => {
-    if (editingProduct) {
-      const newExtra: ProductExtra = {
-        id: `extra-${Date.now()}`,
-        name: '',
-        price: 0,
-        isActive: true
-      };
-      setEditingProduct({
-        ...editingProduct,
-        extras: [...(editingProduct.extras || []), newExtra]
-      });
-    }
-  };
 
-  const handleRemoveExtra = (id: string) => {
-    if (editingProduct) {
-      setEditingProduct({
-        ...editingProduct,
-        extras: (editingProduct.extras || []).filter(e => e.id !== id)
-      });
-    }
-  };
 
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) return;
@@ -484,47 +515,6 @@ export function MenuManagement() {
                     </div>
                   </div>
 
-                  {/* Extras / Adicionais */}
-                  <div className="space-y-4 pt-4 border-t border-border">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-base font-semibold">Adicionais / Opcionais</Label>
-                      <Button variant="outline" size="sm" onClick={handleAddExtra} className="gap-1">
-                        <Plus className="w-3 h-3" />
-                        Add
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {(editingProduct.extras || []).map((extra) => (
-                        <div key={extra.id} className="flex gap-2 items-start bg-secondary/30 p-3 rounded-lg border border-border/50">
-                          <div className="space-y-2 flex-1">
-                            <Input 
-                              placeholder="Nome" 
-                              value={extra.name} 
-                              onChange={(e) => {
-                                const newExtras = (editingProduct.extras || []).map(ex => ex.id === extra.id ? {...ex, name: e.target.value} : ex);
-                                setEditingProduct({...editingProduct, extras: newExtras});
-                              }}
-                              className="h-8 text-sm"
-                            />
-                            <Input 
-                              placeholder="Preço" 
-                              type="number" 
-                              value={extra.price} 
-                              onChange={(e) => {
-                                const newExtras = (editingProduct.extras || []).map(ex => ex.id === extra.id ? {...ex, price: Number(e.target.value)} : ex);
-                                setEditingProduct({...editingProduct, extras: newExtras});
-                              }}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          <Button variant="ghost" size="icon" onClick={() => handleRemoveExtra(extra.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </ScrollArea>
 
