@@ -266,6 +266,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         isCombo: savedProduct.is_combo,
         comboItems: savedProduct.combo_items || [],
         sortOrder: savedProduct.sort_order || 0,
+        disabledExtraIds: savedProduct.disabled_extra_ids || [],
       };
       setProducts(prev => [...prev, newProductWithRealId]);
     }

@@ -27,8 +27,15 @@ export function ProductCard({ product }: ProductCardProps) {
 
   // Get extra groups from the product's category
   const category = categories.find(c => c.id === product.categoryId);
-  const activeGroups = (category?.extraGroups || []).filter(g => g.isActive);
-  const totalActiveItems = activeGroups.reduce((sum, g) => sum + g.items.filter(i => i.isActive).length, 0);
+  const disabledIds = product.disabledExtraIds || [];
+  const activeGroups = (category?.extraGroups || [])
+    .filter(g => g.isActive)
+    .map(g => ({
+      ...g,
+      items: g.items.filter(i => i.isActive && !disabledIds.includes(i.id))
+    }))
+    .filter(g => g.items.length > 0);
+  const totalActiveItems = activeGroups.reduce((sum, g) => sum + g.items.length, 0);
 
   const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.price, 0);
   const itemTotal = (product.price + extrasTotal) * quantity;
@@ -158,7 +165,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
             {/* ── Grupos de Complementos (estilo iFood) ── */}
             {activeGroups.map((group) => {
-              const activeItems = group.items.filter(i => i.isActive);
+              const activeItems = group.items; // Already filtered above
               if (activeItems.length === 0) return null;
               
               const groupCount = getGroupSelectedCount(group);

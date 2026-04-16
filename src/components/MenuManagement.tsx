@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed, Check, ChevronDown, ChevronRight, Grid2X2, Layers } from 'lucide-react';
+import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed, Check, ChevronDown, ChevronRight, Grid2X2, Layers, Settings2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatPrice } from '@/utils/format';
@@ -337,7 +337,9 @@ export function MenuManagement() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [isExtrasDialogOpen, setIsExtrasDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [extrasFilter, setExtrasFilter] = useState<string>('all');
 
 
   const handleEdit = (product: Product) => {
@@ -381,6 +383,29 @@ export function MenuManagement() {
     setNewCategoryName('');
   };
 
+  // ── Adicionais: toggle extra item per product ──
+  const handleToggleExtraForProduct = (product: Product, extraItemId: string) => {
+    const disabled = product.disabledExtraIds || [];
+    const isDisabled = disabled.includes(extraItemId);
+    const newDisabled = isDisabled
+      ? disabled.filter(id => id !== extraItemId)
+      : [...disabled, extraItemId];
+    updateProduct({ ...product, disabledExtraIds: newDisabled });
+  };
+
+  // Get all unique extra items across all categories
+  const allExtraGroups = categories.flatMap(c => (c.extraGroups || []).filter(g => g.isActive));
+  const hasAnyExtras = allExtraGroups.some(g => g.items.filter(i => i.isActive).length > 0);
+
+  // Categories that have extras
+  const categoriesWithExtras = categories.filter(c => 
+    (c.extraGroups || []).some(g => g.isActive && g.items.some(i => i.isActive))
+  );
+
+  const filteredCategories = extrasFilter === 'all' 
+    ? categoriesWithExtras 
+    : categoriesWithExtras.filter(c => c.id === extrasFilter);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -388,6 +413,10 @@ export function MenuManagement() {
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)} className="gap-2 flex-1 sm:flex-none">
             Categorias
+          </Button>
+          <Button variant="outline" onClick={() => setIsExtrasDialogOpen(true)} className="gap-2 flex-1 sm:flex-none">
+            <Settings2 className="w-4 h-4" />
+            Adicionais
           </Button>
           <Button onClick={handleAddProduct} className="gap-2 flex-1 sm:flex-none">
             <Plus className="w-4 h-4" />
@@ -687,6 +716,161 @@ export function MenuManagement() {
                 </ScrollArea>
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog de Adicionais (por produto) ── */}
+      <Dialog open={isExtrasDialogOpen} onOpenChange={setIsExtrasDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden bg-background border-border shadow-2xl">
+          <DialogHeader className="p-6 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Settings2 className="w-4 h-4 text-primary" />
+              </div>
+              Adicionais por Produto
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ative ou desative os itens de complemento para cada produto individualmente.
+            </p>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {!hasAnyExtras ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Layers className="w-12 h-12 text-muted-foreground/20 mb-3" />
+                <p className="text-sm text-muted-foreground font-medium">Nenhum adicional cadastrado.</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Crie grupos de complementos nas Categorias primeiro.</p>
+              </div>
+            ) : (
+              <>
+                {/* Filtro por categoria */}
+                {categoriesWithExtras.length > 1 && (
+                  <div className="px-6 pt-4 pb-2">
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setExtrasFilter('all')}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider border transition-all ${
+                          extrasFilter === 'all'
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                            : 'bg-secondary/30 text-muted-foreground border-border hover:border-primary/40'
+                        }`}
+                      >
+                        Todas
+                      </button>
+                      {categoriesWithExtras.map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setExtrasFilter(cat.id)}
+                          className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider border transition-all ${
+                            extrasFilter === cat.id
+                              ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                              : 'bg-secondary/30 text-muted-foreground border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <ScrollArea className="flex-1 px-6 pb-6">
+                  <div className="space-y-6 pt-2">
+                    {filteredCategories.sort((a,b) => a.order - b.order).map(category => {
+                      const catProducts = products
+                        .filter(p => p.categoryId === category.id)
+                        .sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                      const catExtraGroups = (category.extraGroups || []).filter(g => g.isActive);
+                      const allExtraItems = catExtraGroups.flatMap(g => g.items.filter(i => i.isActive));
+
+                      if (catProducts.length === 0 || allExtraItems.length === 0) return null;
+
+                      return (
+                        <div key={category.id} className="space-y-3">
+                          {/* Category header */}
+                          <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10 border-b border-border/40">
+                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white shadow-sm">
+                              {category.order.toString().padStart(2, '0')}
+                            </div>
+                            <span className="text-xs font-black uppercase tracking-tight text-zinc-600 dark:text-zinc-400">
+                              {category.name}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/60 font-medium">
+                              ({catProducts.length} produtos · {allExtraItems.length} extras)
+                            </span>
+                          </div>
+
+                          {/* Products with extras table */}
+                          <div className="rounded-xl border border-border/60 overflow-hidden bg-card">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="bg-secondary/30 border-b border-border/40">
+                                    <th className="text-left px-3 py-2 text-[10px] uppercase font-black tracking-widest text-muted-foreground min-w-[160px] sticky left-0 bg-secondary/30">
+                                      Produto
+                                    </th>
+                                    {catExtraGroups.map(group => (
+                                      <th key={group.id} colSpan={group.items.filter(i => i.isActive).length} className="text-center px-1 py-1.5 border-l border-border/30">
+                                        <span className="text-[8px] uppercase font-black tracking-widest text-primary block leading-tight">{group.name}</span>
+                                      </th>
+                                    ))}
+                                  </tr>
+                                  <tr className="bg-secondary/10 border-b border-border/30">
+                                    <th className="sticky left-0 bg-secondary/10"></th>
+                                    {catExtraGroups.map(group => 
+                                      group.items.filter(i => i.isActive).map(item => (
+                                        <th key={item.id} className="px-1 py-1.5 border-l border-border/20">
+                                          <div className="flex flex-col items-center gap-0.5">
+                                            <span className="text-[9px] font-medium text-foreground/80 truncate max-w-[80px]" title={item.name}>{item.name}</span>
+                                            {item.price > 0 && (
+                                              <span className="text-[8px] text-muted-foreground/60">+{formatPrice(item.price)}</span>
+                                            )}
+                                          </div>
+                                        </th>
+                                      ))
+                                    )}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {catProducts.map((product, pi) => {
+                                    const disabled = product.disabledExtraIds || [];
+                                    return (
+                                      <tr key={product.id} className={`border-b border-border/20 hover:bg-secondary/10 transition-colors ${pi % 2 === 0 ? 'bg-background' : 'bg-secondary/5'}`}>
+                                        <td className="px-3 py-2 sticky left-0 font-medium text-xs truncate max-w-[200px] border-r border-border/20" style={{backgroundColor: 'inherit'}} title={product.name}>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-[9px] text-muted-foreground/50 font-mono">#{product.sortOrder.toString().padStart(2, '0')}</span>
+                                            <span className={`font-bold uppercase tracking-tight ${!product.isActive ? 'text-muted-foreground/40 line-through' : ''}`}>{product.name}</span>
+                                          </div>
+                                        </td>
+                                        {catExtraGroups.map(group => 
+                                          group.items.filter(i => i.isActive).map(item => {
+                                            const isEnabled = !disabled.includes(item.id);
+                                            return (
+                                              <td key={item.id} className="px-1 py-1.5 text-center border-l border-border/20">
+                                                <Switch
+                                                  checked={isEnabled}
+                                                  onCheckedChange={() => handleToggleExtraForProduct(product, item.id)}
+                                                  className="mx-auto scale-75"
+                                                />
+                                              </td>
+                                            );
+                                          })
+                                        )}
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>

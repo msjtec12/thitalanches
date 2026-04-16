@@ -10,6 +10,7 @@ export interface Product {
   isCombo?: boolean;
   comboItems?: string[]; // IDs of products that are part of this combo
   sortOrder: number;
+  disabledExtraIds?: string[]; // IDs of extra items disabled for this specific product
 }
 
 // ── Complementos estilo iFood ──────────────────────────

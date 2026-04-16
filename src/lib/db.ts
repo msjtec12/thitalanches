@@ -321,6 +321,7 @@ export const db = {
       isCombo: p.is_combo,
       comboItems: p.combo_items || [],
       sortOrder: p.sort_order || 0,
+      disabledExtraIds: p.disabled_extra_ids || [],
     }));
   },
 
@@ -341,7 +342,8 @@ export const db = {
         image_url: product.image,
         is_combo: product.isCombo,
         combo_items: product.comboItems,
-        sort_order: product.sortOrder
+        sort_order: product.sortOrder,
+        disabled_extra_ids: product.disabledExtraIds || []
       })
       .select()
       .single();
