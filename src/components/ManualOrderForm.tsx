@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
-import { OrderOrigin, PickupType, Product, ProductExtra } from '@/types/order';
+import { OrderOrigin, PickupType, Product, ProductExtra, ExtraGroup } from '@/types/order';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -208,12 +208,20 @@ export function ManualOrderForm() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  const toggleExtra = (extra: ProductExtra) => {
-    setProductExtras(prev =>
-      prev.find(e => e.id === extra.id)
-        ? prev.filter(e => e.id !== extra.id)
-        : [...prev, extra]
-    );
+  const toggleExtra = (extra: ProductExtra, group: ExtraGroup) => {
+    const isSelected = productExtras.some(e => e.id === extra.id);
+    if (isSelected) {
+      setProductExtras(prev => prev.filter(e => e.id !== extra.id));
+    } else {
+      const groupCount = productExtras.filter(se => group.items.some(gi => gi.id === se.id)).length;
+      if (group.maxQty > 0 && groupCount >= group.maxQty) {
+        if (group.maxQty === 1) {
+          setProductExtras(prev => [...prev.filter(e => !group.items.some(gi => gi.id === e.id)), extra]);
+        }
+        return;
+      }
+      setProductExtras(prev => [...prev, extra]);
+    }
   };
 
   return (
@@ -289,58 +297,51 @@ export function ManualOrderForm() {
                   </Button>
                 </div>
 
-                {/* ── Complementos / Adicionais (da categoria) ── */}
+                {/* ── Grupos de Complementos (estilo iFood) ── */}
                 {(() => {
                   const cat = categories.find(c => c.id === selectedProduct.categoryId);
-                  const catExtras = (cat?.extras || []).filter(e => e.isActive !== false);
-                  if (catExtras.length === 0) return null;
-                  return (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-px bg-border" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2">
-                        Complementos
-                      </span>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-                    <div className="space-y-2">
-                      {catExtras.map((extra) => {
-                        const isSelected = productExtras.some(e => e.id === extra.id);
-                        return (
-                          <button
-                            key={extra.id}
-                            type="button"
-                            onClick={() => toggleExtra(extra)}
-                            className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-150 text-left
-                              ${isSelected
-                                ? 'border-primary bg-primary/8 shadow-sm shadow-primary/10'
-                                : 'border-border bg-background hover:border-primary/30 hover:bg-secondary/60'
-                              }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
-                                ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}
-                              >
-                                {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                  const activeGroups = (cat?.extraGroups || []).filter(g => g.isActive);
+                  if (activeGroups.length === 0) return null;
+                  return activeGroups.map(group => {
+                    const activeItems = group.items.filter(i => i.isActive);
+                    if (activeItems.length === 0) return null;
+                    const groupCount = productExtras.filter(se => group.items.some(gi => gi.id === se.id)).length;
+                    return (
+                      <div key={group.id} className="space-y-2">
+                        <div className="flex items-center justify-between bg-secondary/40 -mx-4 px-4 py-2 border-y border-border/50">
+                          <div>
+                            <h4 className="text-xs font-bold">{group.name}</h4>
+                            <p className="text-[10px] text-muted-foreground">
+                              {group.isRequired ? `Escolha de ${group.minQty} a ${group.maxQty > 0 ? group.maxQty : '∞'}` : group.maxQty > 0 ? `Até ${group.maxQty}` : 'Opcional'}
+                            </p>
+                          </div>
+                          {group.isRequired && (
+                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                              groupCount >= group.minQty ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                            }`}>{groupCount >= group.minQty ? '✓ OK' : 'OBRIGATÓRIO'}</span>
+                          )}
+                        </div>
+                        {activeItems.map(extra => {
+                          const isSelected = productExtras.some(e => e.id === extra.id);
+                          const isRadio = group.maxQty === 1;
+                          return (
+                            <button key={extra.id} type="button" onClick={() => toggleExtra(extra, group)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all duration-150 text-left
+                                ${isSelected ? 'border-primary bg-primary/8 shadow-sm shadow-primary/10' : 'border-border bg-background hover:border-primary/30 hover:bg-secondary/60'}`}>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-4 h-4 ${isRadio ? 'rounded-full' : 'rounded-sm'} border-2 flex items-center justify-center flex-shrink-0 transition-all
+                                  ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'}`}>
+                                  {isSelected && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                                </div>
+                                <span className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>{extra.name}</span>
                               </div>
-                              <span className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
-                                {extra.name}
-                              </span>
-                            </div>
-                            <span className={`text-sm font-semibold flex-shrink-0 ml-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
-                              +{formatPrice(extra.price)}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {productExtras.length > 0 && (
-                      <p className="text-xs text-muted-foreground px-1">
-                        <span className="font-semibold text-primary">{productExtras.length}</span> complemento{productExtras.length > 1 ? 's' : ''}: {productExtras.map(e => e.name).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                  );
+                              {extra.price > 0 && <span className={`text-xs font-semibold ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>+{formatPrice(extra.price)}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  });
                 })()}
 
                 {/* ── Observação ── */}

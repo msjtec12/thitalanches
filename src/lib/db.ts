@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, Category, CategoryExtra, Order, StoreSettings, neighborhood, CashierLog } from '@/types/order';
+import { Product, Category, ExtraGroup, ExtraItem, Order, StoreSettings, neighborhood, CashierLog } from '@/types/order';
 
 export const db = {
   // Settings
@@ -122,16 +122,19 @@ export const db = {
 
   // Categories
   async getCategories(): Promise<Category[]> {
-    // Try with category_extras join first
+    // Try loading categories with extra groups + items
     let { data, error } = await supabase
       .from('categories')
       .select(`
         *,
-        category_extras (*)
+        category_extra_groups (
+          *,
+          category_extra_items (*)
+        )
       `)
       .order('sort_order');
     
-    // Fallback: if category_extras table doesn't exist yet, query without join
+    // Fallback: if tables don't exist yet, query without joins
     if (error) {
       const fallback = await supabase
         .from('categories')
@@ -146,7 +149,7 @@ export const db = {
         order: c.sort_order,
         photoUrl: c.photo_url || undefined,
         isActive: c.is_active ?? true,
-        extras: []
+        extraGroups: []
       }));
     }
 
@@ -156,12 +159,26 @@ export const db = {
       order: c.sort_order,
       photoUrl: c.photo_url || undefined,
       isActive: c.is_active ?? true,
-      extras: (c.category_extras || []).map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        price: e.price,
-        isActive: e.is_active ?? true
-      }))
+      extraGroups: (c.category_extra_groups || [])
+        .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          minQty: g.min_qty || 0,
+          maxQty: g.max_qty || 0,
+          isRequired: g.is_required ?? false,
+          isActive: g.is_active ?? true,
+          sortOrder: g.sort_order || 0,
+          items: (g.category_extra_items || [])
+            .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
+            .map((i: any) => ({
+              id: i.id,
+              name: i.name,
+              price: i.price,
+              isActive: i.is_active ?? true,
+              sortOrder: i.sort_order || 0
+            }))
+        }))
     }));
   },
 
@@ -172,7 +189,7 @@ export const db = {
       .select()
       .single();
     if (error) { console.error('Erro ao criar categoria:', error); return null; }
-    return { id: data.id, name: data.name, order: data.sort_order, photoUrl: data.photo_url || undefined, isActive: data.is_active ?? true };
+    return { id: data.id, name: data.name, order: data.sort_order, photoUrl: data.photo_url || undefined, isActive: data.is_active ?? true, extraGroups: [] };
   },
 
   async uploadCategoryImage(file: File): Promise<string | null> {
@@ -204,38 +221,82 @@ export const db = {
   },
 
   async deleteCategory(categoryId: string): Promise<void> {
-    // Delete category extras first
-    await supabase.from('category_extras').delete().eq('category_id', categoryId);
+    // Cascade will handle deleting groups/items via FK
     await supabase.from('categories').delete().eq('id', categoryId);
   },
 
-  // Category Extras
-  async saveCategoryExtras(categoryId: string, extras: CategoryExtra[]): Promise<void> {
-    // Get existing extras for this category
-    const { data: existing } = await supabase
-      .from('category_extras')
+  // ── Extra Groups & Items (estilo iFood) ──────────────────
+  async saveCategoryExtraGroups(categoryId: string, groups: ExtraGroup[]): Promise<void> {
+    // 1. Get existing groups for this category
+    const { data: existingGroups } = await supabase
+      .from('category_extra_groups')
       .select('id')
       .eq('category_id', categoryId);
     
-    const existingIds = (existing || []).map(e => e.id);
-    const newIds = extras.filter(e => !e.id.startsWith('extra-')).map(e => e.id);
-    const toDelete = existingIds.filter(id => !newIds.includes(id));
+    const existingGroupIds = (existingGroups || []).map(g => g.id);
+    const currentGroupIds = groups.filter(g => !g.id.startsWith('grp-')).map(g => g.id);
+    const groupsToDelete = existingGroupIds.filter(id => !currentGroupIds.includes(id));
     
-    // Delete removed extras
-    if (toDelete.length > 0) {
-      await supabase.from('category_extras').delete().in('id', toDelete);
+    // Delete removed groups (cascade will delete items)
+    if (groupsToDelete.length > 0) {
+      await supabase.from('category_extra_groups').delete().in('id', groupsToDelete);
     }
     
-    // Upsert all current extras
-    for (const extra of extras) {
-      const { error } = await supabase.from('category_extras').upsert({
-        id: extra.id.startsWith('extra-') ? undefined : extra.id,
-        category_id: categoryId,
-        name: extra.name,
-        price: extra.price,
-        is_active: extra.isActive
-      });
-      if (error) console.error('Erro ao salvar adicional de categoria:', error);
+    // 2. Upsert each group and its items
+    for (const group of groups) {
+      const isNewGroup = group.id.startsWith('grp-');
+      
+      const { data: savedGroup, error: gError } = await supabase
+        .from('category_extra_groups')
+        .upsert({
+          id: isNewGroup ? undefined : group.id,
+          category_id: categoryId,
+          name: group.name,
+          min_qty: group.minQty,
+          max_qty: group.maxQty,
+          is_required: group.isRequired,
+          is_active: group.isActive,
+          sort_order: group.sortOrder
+        })
+        .select()
+        .single();
+      
+      if (gError || !savedGroup) {
+        console.error('Erro ao salvar grupo:', gError);
+        continue;
+      }
+      
+      const realGroupId = savedGroup.id;
+      
+      // Get existing items for this group
+      const { data: existingItems } = await supabase
+        .from('category_extra_items')
+        .select('id')
+        .eq('group_id', realGroupId);
+      
+      const existingItemIds = (existingItems || []).map(i => i.id);
+      const currentItemIds = group.items.filter(i => !i.id.startsWith('item-')).map(i => i.id);
+      const itemsToDelete = existingItemIds.filter(id => !currentItemIds.includes(id));
+      
+      if (itemsToDelete.length > 0) {
+        await supabase.from('category_extra_items').delete().in('id', itemsToDelete);
+      }
+      
+      // Upsert items
+      for (const item of group.items) {
+        const isNewItem = item.id.startsWith('item-');
+        const { error: iError } = await supabase
+          .from('category_extra_items')
+          .upsert({
+            id: isNewItem ? undefined : item.id,
+            group_id: realGroupId,
+            name: item.name,
+            price: item.price,
+            is_active: item.isActive,
+            sort_order: item.sortOrder
+          });
+        if (iError) console.error('Erro ao salvar item:', iError);
+      }
     }
   },
 

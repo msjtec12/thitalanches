@@ -1,61 +1,62 @@
 -- =============================================
--- Migração: Adicionais por Categoria
+-- Migração: Sistema de Adicionais estilo iFood
 -- =============================================
--- Cria a tabela category_extras para armazenar
--- adicionais/complementos vinculados a categorias
--- ao invés de produtos individuais.
+-- Grupos de complementos por categoria com
+-- regras de mínimo/máximo e obrigatoriedade.
 -- =============================================
 
--- 1. Criar tabela category_extras
-CREATE TABLE IF NOT EXISTS category_extras (
+-- 1. Tabela de GRUPOS de complementos
+CREATE TABLE IF NOT EXISTS category_extra_groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  min_qty INT NOT NULL DEFAULT 0,
+  max_qty INT NOT NULL DEFAULT 0,
+  is_required BOOLEAN NOT NULL DEFAULT false,
   is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Índice para busca por categoria
-CREATE INDEX IF NOT EXISTS idx_category_extras_category_id 
-  ON category_extras(category_id);
+-- 2. Tabela de ITENS dentro de cada grupo
+CREATE TABLE IF NOT EXISTS category_extra_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  group_id UUID NOT NULL REFERENCES category_extra_groups(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
--- 3. Habilitar RLS (Row Level Security)
-ALTER TABLE category_extras ENABLE ROW LEVEL SECURITY;
+-- 3. Índices
+CREATE INDEX IF NOT EXISTS idx_extra_groups_category_id
+  ON category_extra_groups(category_id);
 
--- 4. Política de leitura pública (para clientes verem os adicionais)
-CREATE POLICY "Allow public read access on category_extras"
-  ON category_extras FOR SELECT
-  USING (true);
+CREATE INDEX IF NOT EXISTS idx_extra_items_group_id
+  ON category_extra_items(group_id);
 
--- 5. Política de escrita (admin/service_role)
-CREATE POLICY "Allow authenticated write on category_extras"
-  ON category_extras FOR ALL
-  USING (true)
-  WITH CHECK (true);
+-- 4. RLS
+ALTER TABLE category_extra_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE category_extra_items ENABLE ROW LEVEL SECURITY;
+
+-- 5. Políticas de leitura pública
+CREATE POLICY "Allow public read on category_extra_groups"
+  ON category_extra_groups FOR SELECT USING (true);
+
+CREATE POLICY "Allow public read on category_extra_items"
+  ON category_extra_items FOR SELECT USING (true);
+
+-- 6. Políticas de escrita
+CREATE POLICY "Allow write on category_extra_groups"
+  ON category_extra_groups FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow write on category_extra_items"
+  ON category_extra_items FOR ALL USING (true) WITH CHECK (true);
 
 -- =============================================
--- OPCIONAL: Migrar dados existentes de product_extras
--- para category_extras (agrupa por categoria)
--- =============================================
--- Se você já tem adicionais cadastrados por produto,
--- este INSERT irá migrar os dados únicos para category_extras.
--- Descomente e execute se necessário:
---
--- INSERT INTO category_extras (name, price, is_active, category_id)
--- SELECT DISTINCT ON (pe.name, p.category_id)
---   pe.name,
---   pe.price,
---   pe.is_active,
---   p.category_id
--- FROM product_extras pe
--- JOIN products p ON pe.product_id = p.id
--- ORDER BY pe.name, p.category_id, pe.created_at DESC;
-
--- =============================================
--- NOTA: A tabela product_extras continua existindo
--- mas não é mais usada pela aplicação.
--- Você pode removê-la futuramente quando confirmar
--- que tudo está funcionando:
+-- NOTA: As tabelas anteriores (category_extras,
+-- product_extras) podem ser removidas futuramente.
+-- DROP TABLE IF EXISTS category_extras;
 -- DROP TABLE IF EXISTS product_extras;
 -- =============================================

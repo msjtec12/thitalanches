@@ -1,6 +1,6 @@
 import { useState, Fragment } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
-import { Product, CategoryExtra, Category } from '@/types/order';
+import { Product, ExtraGroup, ExtraItem, Category } from '@/types/order';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed, Check, ChevronDown, Grid2X2 } from 'lucide-react';
+import { Edit2, Trash2, Plus, Image as ImageIcon, X, UtensilsCrossed, Check, ChevronDown, ChevronRight, Grid2X2, Layers } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatPrice } from '@/utils/format';
@@ -32,13 +32,13 @@ function CategoryEditRow({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useState<HTMLInputElement | null>(null);
-  const [extras, setExtras] = useState<CategoryExtra[]>(category.extras || []);
+  const [extraGroups, setExtraGroups] = useState<ExtraGroup[]>(category.extraGroups || []);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
-    // Preview local imediato
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
   };
@@ -58,20 +58,80 @@ function CategoryEditRow({
       order: Number(order) || category.order,
       isActive: isActive,
       photoUrl: finalPhotoUrl,
-      extras: extras
+      extraGroups: extraGroups
     });
     setSelectedFile(null);
     setIsEditing(false);
     setIsUploading(false);
   };
 
+  const handleCancel = () => {
+    setIsEditing(false);
+    setSelectedFile(null);
+    setPreviewUrl(category.photoUrl || '');
+    setOrder(category.order);
+    setIsActive(category.isActive ?? true);
+    setExtraGroups(category.extraGroups || []);
+    setExpandedGroupId(null);
+  };
+
+  const addGroup = () => {
+    const newGroup: ExtraGroup = {
+      id: `grp-${Date.now()}`,
+      name: '',
+      minQty: 0,
+      maxQty: 0,
+      isRequired: false,
+      isActive: true,
+      sortOrder: extraGroups.length,
+      items: []
+    };
+    setExtraGroups(prev => [...prev, newGroup]);
+    setExpandedGroupId(newGroup.id);
+  };
+
+  const updateGroup = (groupId: string, updates: Partial<ExtraGroup>) => {
+    setExtraGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
+  };
+
+  const removeGroup = (groupId: string) => {
+    setExtraGroups(prev => prev.filter(g => g.id !== groupId));
+    if (expandedGroupId === groupId) setExpandedGroupId(null);
+  };
+
+  const addItemToGroup = (groupId: string) => {
+    const group = extraGroups.find(g => g.id === groupId);
+    const newItem: ExtraItem = {
+      id: `item-${Date.now()}`,
+      name: '',
+      price: 0,
+      isActive: true,
+      sortOrder: group?.items.length || 0
+    };
+    updateGroup(groupId, { items: [...(group?.items || []), newItem] });
+  };
+
+  const updateItemInGroup = (groupId: string, itemId: string, updates: Partial<ExtraItem>) => {
+    const group = extraGroups.find(g => g.id === groupId);
+    if (!group) return;
+    updateGroup(groupId, {
+      items: group.items.map(i => i.id === itemId ? { ...i, ...updates } : i)
+    });
+  };
+
+  const removeItemFromGroup = (groupId: string, itemId: string) => {
+    const group = extraGroups.find(g => g.id === groupId);
+    if (!group) return;
+    updateGroup(groupId, { items: group.items.filter(i => i.id !== itemId) });
+  };
+
   const currentPhoto = previewUrl || category.photoUrl;
+  const totalExtrasCount = extraGroups.reduce((sum, g) => sum + g.items.length, 0);
 
   return (
     <div className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden">
       {/* Linha principal */}
       <div className="flex items-center gap-2 p-2">
-        {/* Thumbnail atual */}
         <div
           className="w-10 h-10 rounded-md flex-shrink-0 bg-muted overflow-hidden border border-border/40 flex items-center justify-center"
           style={currentPhoto ? { backgroundImage: `url(${currentPhoto})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
@@ -87,20 +147,17 @@ function CategoryEditRow({
           {!category.isActive && (
             <Badge variant="secondary" className="h-4 px-1 text-[8px] bg-destructive/10 text-destructive border-destructive/20 uppercase font-black">Bloqueada</Badge>
           )}
+          {totalExtrasCount > 0 && (
+            <Badge variant="secondary" className="h-4 px-1 text-[8px] bg-primary/10 text-primary border-primary/20">
+              {extraGroups.length} grupo{extraGroups.length > 1 ? 's' : ''} · {totalExtrasCount} itens
+            </Badge>
+          )}
         </div>
 
-        <Button
-          variant="ghost" size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-primary"
-          onClick={() => setIsEditing(v => !v)}
-        >
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => setIsEditing(v => !v)}>
           {isEditing ? <ChevronDown className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
         </Button>
-        <Button
-          variant="ghost" size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(category.id)}
-        >
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onDelete(category.id)}>
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
@@ -109,18 +166,14 @@ function CategoryEditRow({
       {isEditing && (
         <div className="border-t border-border/40 p-3 space-y-3 bg-background/60">
           <div className="grid grid-cols-4 gap-3">
-             {/* Ordem */}
             <div className="space-y-1 col-span-1">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Posição</Label>
               <Input type="number" value={order} onChange={e => setOrder(Number(e.target.value))} className="h-8" />
             </div>
-
             <div className="space-y-1 col-span-2">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Nome</Label>
               <Input value={name} onChange={e => setName(e.target.value)} className="h-8" />
             </div>
-
-            {/* Status */}
             <div className="space-y-1 col-span-1 flex flex-col items-center justify-end pb-1">
               <Label className="text-[8px] uppercase tracking-tight text-muted-foreground mb-1">Status</Label>
               <Switch checked={isActive} onCheckedChange={setIsActive} />
@@ -130,89 +183,144 @@ function CategoryEditRow({
           {/* Upload de imagem */}
           <div className="space-y-2">
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Foto da categoria</Label>
-            
-            {/* Preview */}
             {currentPhoto && (
-              <img
-                src={currentPhoto}
-                alt="preview"
-                className="w-full h-24 object-cover rounded-lg border border-border/40"
-                onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
-              />
+              <img src={currentPhoto} alt="preview" className="w-full h-24 object-cover rounded-lg border border-border/40"
+                onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
             )}
-
-            {/* Botão de seleção */}
             <label className="flex items-center justify-center gap-2 w-full h-10 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors text-sm text-muted-foreground hover:text-primary">
               <ImageIcon className="w-4 h-4" />
               <span>{selectedFile ? selectedFile.name : 'Selecionar imagem...'}</span>
-              <input
-                ref={el => { if (el) fileInputRef[1](el); }}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              <input ref={el => { if (el) fileInputRef[1](el); }} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             </label>
-
-            {selectedFile && (
-              <p className="text-[10px] text-muted-foreground">✓ Imagem selecionada — será enviada ao salvar</p>
-            )}
+            {selectedFile && <p className="text-[10px] text-muted-foreground">✓ Imagem selecionada — será enviada ao salvar</p>}
           </div>
 
-          {/* Extras / Adicionais da Categoria */}
+          {/* ── GRUPOS DE COMPLEMENTOS (estilo iFood) ── */}
           <div className="space-y-3 pt-3 border-t border-border/40">
             <div className="flex justify-between items-center">
-              <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Adicionais / Opcionais</Label>
-              <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={() => {
-                setExtras(prev => [...prev, { id: `extra-${Date.now()}`, name: '', price: 0, isActive: true }]);
-              }}>
+              <div className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5 text-primary" />
+                <Label className="text-[10px] uppercase font-black tracking-widest text-primary">Grupos de Complementos</Label>
+              </div>
+              <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={addGroup}>
                 <Plus className="w-3 h-3" />
-                Add
+                Novo Grupo
               </Button>
             </div>
-            
-            {extras.length === 0 && (
-              <p className="text-[10px] text-muted-foreground/60 italic text-center py-2">Nenhum adicional cadastrado para esta categoria.</p>
+
+            {extraGroups.length === 0 && (
+              <div className="text-center py-4 bg-secondary/20 rounded-lg border border-dashed border-border/50">
+                <Layers className="w-6 h-6 text-muted-foreground/30 mx-auto mb-1" />
+                <p className="text-[10px] text-muted-foreground/60 italic">Nenhum grupo de complementos.</p>
+                <p className="text-[9px] text-muted-foreground/40">Crie grupos como "Adicionais", "Escolha o molho", etc.</p>
+              </div>
             )}
 
             <div className="space-y-2">
-              {extras.map((extra) => (
-                <div key={extra.id} className="flex gap-2 items-center bg-secondary/30 p-2 rounded-lg border border-border/50">
-                  <Input 
-                    placeholder="Nome do adicional" 
-                    value={extra.name} 
-                    onChange={(e) => {
-                      setExtras(prev => prev.map(ex => ex.id === extra.id ? {...ex, name: e.target.value} : ex));
-                    }}
-                    className="h-7 text-xs flex-1"
-                  />
-                  <Input 
-                    placeholder="Preço" 
-                    type="number" 
-                    value={extra.price} 
-                    onChange={(e) => {
-                      setExtras(prev => prev.map(ex => ex.id === extra.id ? {...ex, price: Number(e.target.value)} : ex));
-                    }}
-                    className="h-7 text-xs w-20"
-                  />
-                  <Switch 
-                    checked={extra.isActive} 
-                    onCheckedChange={(checked) => {
-                      setExtras(prev => prev.map(ex => ex.id === extra.id ? {...ex, isActive: checked} : ex));
-                    }}
-                  />
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => {
-                    setExtras(prev => prev.filter(ex => ex.id !== extra.id));
-                  }}>
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
+              {extraGroups.map((group, gi) => {
+                const isExpanded = expandedGroupId === group.id;
+                return (
+                  <div key={group.id} className="rounded-lg border border-border/60 bg-card overflow-hidden">
+                    {/* Cabeçalho do grupo */}
+                    <div 
+                      className="flex items-center gap-2 p-2 cursor-pointer hover:bg-secondary/30 transition-colors"
+                      onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}
+                    >
+                      {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-primary" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold truncate block">{group.name || '(Sem nome)'}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {group.isRequired && (
+                            <Badge className="h-3.5 px-1 text-[7px] bg-red-500/10 text-red-500 border-red-500/20 font-black">OBRIGATÓRIO</Badge>
+                          )}
+                          <span className="text-[9px] text-muted-foreground">
+                            {group.minQty > 0 ? `Min: ${group.minQty}` : 'Opcional'}
+                            {group.maxQty > 0 ? ` · Max: ${group.maxQty}` : ''}
+                            {' · '}{group.items.length} {group.items.length === 1 ? 'item' : 'itens'}
+                          </span>
+                        </div>
+                      </div>
+                      <Switch 
+                        checked={group.isActive} 
+                        onCheckedChange={(v) => { updateGroup(group.id, { isActive: v }); }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); removeGroup(group.id); }}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    {/* Conteúdo expandido do grupo */}
+                    {isExpanded && (
+                      <div className="border-t border-border/40 p-3 space-y-3 bg-secondary/5">
+                        {/* Config do grupo */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="col-span-2 space-y-1">
+                            <Label className="text-[9px] uppercase tracking-wide text-muted-foreground">Nome do Grupo</Label>
+                            <Input value={group.name} onChange={e => updateGroup(group.id, { name: e.target.value })} 
+                              placeholder="Ex: Adicionais, Escolha o molho..." className="h-7 text-xs" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[9px] uppercase tracking-wide text-muted-foreground">Mínimo</Label>
+                            <Input type="number" min={0} value={group.minQty} onChange={e => {
+                              const val = Number(e.target.value) || 0;
+                              updateGroup(group.id, { minQty: val, isRequired: val > 0 });
+                            }} className="h-7 text-xs" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[9px] uppercase tracking-wide text-muted-foreground">Máximo</Label>
+                            <Input type="number" min={0} value={group.maxQty} onChange={e => updateGroup(group.id, { maxQty: Number(e.target.value) || 0 })}
+                              className="h-7 text-xs" />
+                          </div>
+                          <div className="flex flex-col items-center justify-end pb-0.5 space-y-1">
+                            <Label className="text-[8px] uppercase tracking-tight text-muted-foreground">Obrigatório</Label>
+                            <Switch checked={group.isRequired} onCheckedChange={v => updateGroup(group.id, { isRequired: v, minQty: v && group.minQty === 0 ? 1 : group.minQty })} />
+                          </div>
+                        </div>
+
+                        {/* Itens do grupo */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground">Itens</Label>
+                            <Button variant="outline" size="sm" className="h-6 gap-1 text-[9px] px-2" onClick={() => addItemToGroup(group.id)}>
+                              <Plus className="w-2.5 h-2.5" />
+                              Item
+                            </Button>
+                          </div>
+                          
+                          {group.items.length === 0 && (
+                            <p className="text-[9px] text-muted-foreground/50 italic text-center py-2">Adicione itens a este grupo</p>
+                          )}
+
+                          {group.items.map((item) => (
+                            <div key={item.id} className="flex gap-1.5 items-center bg-background p-1.5 rounded-md border border-border/50">
+                              <Input placeholder="Nome" value={item.name} onChange={e => updateItemInGroup(group.id, item.id, { name: e.target.value })} className="h-6 text-[11px] flex-1" />
+                              <div className="relative">
+                                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground">R$</span>
+                                <Input type="number" placeholder="0" value={item.price} onChange={e => updateItemInGroup(group.id, item.id, { price: Number(e.target.value) })} className="h-6 text-[11px] w-20 pl-6" />
+                              </div>
+                              <Switch checked={item.isActive} onCheckedChange={v => updateItemInGroup(group.id, item.id, { isActive: v })} />
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={() => removeItemFromGroup(group.id, item.id)}>
+                                <X className="w-2.5 h-2.5" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(category.photoUrl || ''); setOrder(category.order); setIsActive(category.isActive ?? true); setExtras(category.extras || []); }}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={handleCancel}>Cancelar</Button>
             <Button size="sm" className="gap-1" onClick={handleSave} disabled={isUploading}>
               {isUploading ? <><span className="animate-spin">⏳</span> Enviando...</> : <><Check className="w-3 h-3" /> Salvar</>}
             </Button>

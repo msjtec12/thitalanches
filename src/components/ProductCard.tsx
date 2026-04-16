@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Product, ProductExtra } from '@/types/order';
+import { Product, ProductExtra, ExtraGroup } from '@/types/order';
 import { useCart } from '@/contexts/CartContext';
 import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Minus, Check, ChevronRight, UtensilsCrossed } from 'lucide-react';
+import { Plus, Minus, Check, ChevronRight, UtensilsCrossed, AlertCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -25,21 +25,50 @@ export function ProductCard({ product }: ProductCardProps) {
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
   const [observation, setObservation] = useState('');
 
-  // Get extras from the product's category
+  // Get extra groups from the product's category
   const category = categories.find(c => c.id === product.categoryId);
-  const activeExtras = (category?.extras || []).filter(e => e.isActive !== false);
+  const activeGroups = (category?.extraGroups || []).filter(g => g.isActive);
+  const totalActiveItems = activeGroups.reduce((sum, g) => sum + g.items.filter(i => i.isActive).length, 0);
+
   const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.price, 0);
   const itemTotal = (product.price + extrasTotal) * quantity;
 
-  const handleExtraToggle = (extra: ProductExtra) => {
-    setSelectedExtras(prev =>
-      prev.find(e => e.id === extra.id)
-        ? prev.filter(e => e.id !== extra.id)
-        : [...prev, extra]
-    );
+  // Count selected items per group
+  const getGroupSelectedCount = (group: ExtraGroup) => {
+    return selectedExtras.filter(se => group.items.some(gi => gi.id === se.id)).length;
+  };
+
+  // Check if all required groups are satisfied
+  const allGroupsSatisfied = activeGroups.every(group => {
+    if (!group.isRequired) return true;
+    const count = getGroupSelectedCount(group);
+    return count >= group.minQty;
+  });
+
+  const handleExtraToggle = (extra: ProductExtra, group: ExtraGroup) => {
+    const isSelected = selectedExtras.some(e => e.id === extra.id);
+    
+    if (isSelected) {
+      setSelectedExtras(prev => prev.filter(e => e.id !== extra.id));
+    } else {
+      // Check max limit
+      const groupCount = getGroupSelectedCount(group);
+      if (group.maxQty > 0 && groupCount >= group.maxQty) {
+        // If max is 1, replace the selection (radio behavior)
+        if (group.maxQty === 1) {
+          setSelectedExtras(prev => [
+            ...prev.filter(e => !group.items.some(gi => gi.id === e.id)),
+            extra
+          ]);
+        }
+        return;
+      }
+      setSelectedExtras(prev => [...prev, extra]);
+    }
   };
 
   const handleAddToCart = () => {
+    if (!allGroupsSatisfied) return;
     addItem(product, quantity, selectedExtras, observation);
     setIsOpen(false);
     resetForm();
@@ -89,9 +118,9 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
             <div className="flex items-center justify-between mt-2">
               <p className="text-primary font-bold">{formatPrice(product.price)}</p>
-              {activeExtras.length > 0 && (
+              {totalActiveItems > 0 && (
                 <span className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                  +{activeExtras.length} opções
+                  +{totalActiveItems} opções
                 </span>
               )}
             </div>
@@ -127,63 +156,96 @@ export function ProductCard({ product }: ProductCardProps) {
               <p className="text-primary font-bold text-lg pt-1">{formatPrice(product.price)}</p>
             </DialogHeader>
 
-            {/* ── Seção de Complementos / Adicionais ── */}
-            {activeExtras.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-2">
-                    Complementos
-                  </span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
+            {/* ── Grupos de Complementos (estilo iFood) ── */}
+            {activeGroups.map((group) => {
+              const activeItems = group.items.filter(i => i.isActive);
+              if (activeItems.length === 0) return null;
+              
+              const groupCount = getGroupSelectedCount(group);
+              const isGroupSatisfied = !group.isRequired || groupCount >= group.minQty;
 
-                <div className="space-y-2">
-                  {activeExtras.map((extra) => {
-                    const isSelected = selectedExtras.some(e => e.id === extra.id);
-                    return (
-                      <button
-                        key={extra.id}
-                        type="button"
-                        onClick={() => handleExtraToggle(extra)}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-150 text-left
-                          ${isSelected
-                            ? 'border-primary bg-primary/8 shadow-sm shadow-primary/10'
-                            : 'border-border bg-secondary/30 hover:border-primary/30 hover:bg-secondary/60'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {/* Indicador de seleção */}
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all
-                            ${isSelected
-                              ? 'border-primary bg-primary'
-                              : 'border-muted-foreground/40'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                          </div>
-                          <span className={`text-sm font-medium leading-tight ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
-                            {extra.name}
-                          </span>
-                        </div>
-                        <span className={`text-sm font-semibold flex-shrink-0 ml-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
-                          +{formatPrice(extra.price)}
+              return (
+                <div key={group.id} className="space-y-3">
+                  {/* Header do grupo */}
+                  <div className="bg-secondary/40 -mx-5 px-5 py-2.5 border-y border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold">{group.name}</h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {group.isRequired ? (
+                            group.minQty === group.maxQty 
+                              ? `Escolha ${group.minQty}` 
+                              : `Escolha de ${group.minQty} a ${group.maxQty > 0 ? group.maxQty : '∞'}`
+                          ) : (
+                            group.maxQty > 0 
+                              ? `Escolha até ${group.maxQty}` 
+                              : 'Opcional'
+                          )}
+                        </p>
+                      </div>
+                      {group.isRequired && (
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          isGroupSatisfied 
+                            ? 'bg-green-500/10 text-green-600 border border-green-500/20' 
+                            : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                        }`}>
+                          {isGroupSatisfied ? '✓ OK' : 'OBRIGATÓRIO'}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Resumo dos selecionados */}
-                {selectedExtras.length > 0 && (
-                  <div className="flex items-center gap-2 px-1">
-                    <ChevronRight className="w-3 h-3 text-primary flex-shrink-0" />
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-semibold text-primary">{selectedExtras.length}</span> complemento{selectedExtras.length > 1 ? 's' : ''} selecionado{selectedExtras.length > 1 ? 's' : ''}:&nbsp;
-                      <span className="font-medium">{selectedExtras.map(e => e.name).join(', ')}</span>
-                    </p>
+                      )}
+                    </div>
                   </div>
-                )}
+
+                  {/* Itens do grupo */}
+                  <div className="space-y-2">
+                    {activeItems.map((extra) => {
+                      const isSelected = selectedExtras.some(e => e.id === extra.id);
+                      const isRadio = group.maxQty === 1;
+                      return (
+                        <button
+                          key={extra.id}
+                          type="button"
+                          onClick={() => handleExtraToggle(extra, group)}
+                          className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all duration-150 text-left
+                            ${isSelected
+                              ? 'border-primary bg-primary/8 shadow-sm shadow-primary/10'
+                              : 'border-border bg-secondary/30 hover:border-primary/30 hover:bg-secondary/60'
+                            }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Indicador de seleção */}
+                            <div className={`w-5 h-5 ${isRadio ? 'rounded-full' : 'rounded-md'} border-2 flex items-center justify-center flex-shrink-0 transition-all
+                              ${isSelected
+                                ? 'border-primary bg-primary'
+                                : 'border-muted-foreground/40'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                            </div>
+                            <span className={`text-sm font-medium leading-tight ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
+                              {extra.name}
+                            </span>
+                          </div>
+                          {extra.price > 0 && (
+                            <span className={`text-sm font-semibold flex-shrink-0 ml-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
+                              +{formatPrice(extra.price)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Resumo dos selecionados */}
+            {selectedExtras.length > 0 && (
+              <div className="flex items-center gap-2 px-1">
+                <ChevronRight className="w-3 h-3 text-primary flex-shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-primary">{selectedExtras.length}</span> complemento{selectedExtras.length > 1 ? 's' : ''} selecionado{selectedExtras.length > 1 ? 's' : ''}:&nbsp;
+                  <span className="font-medium">{selectedExtras.map(e => e.name).join(', ')}</span>
+                </p>
               </div>
             )}
 
@@ -229,7 +291,8 @@ export function ProductCard({ product }: ProductCardProps) {
 
               <Button
                 onClick={handleAddToCart}
-                className="gap-2 shadow-lg shadow-primary/20 font-bold min-w-[150px]"
+                disabled={!allGroupsSatisfied}
+                className={`gap-2 shadow-lg font-bold min-w-[150px] ${!allGroupsSatisfied ? 'opacity-50' : 'shadow-primary/20'}`}
                 size="lg"
               >
                 <span>Adicionar</span>
@@ -238,6 +301,14 @@ export function ProductCard({ product }: ProductCardProps) {
                 </span>
               </Button>
             </div>
+
+            {/* Aviso se algum grupo obrigatório não foi preenchido */}
+            {!allGroupsSatisfied && (
+              <div className="flex items-center gap-2 text-red-500 bg-red-500/5 border border-red-500/20 rounded-lg p-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <p className="text-[11px] font-medium">Preencha todos os campos obrigatórios para continuar.</p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

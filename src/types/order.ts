@@ -12,15 +12,31 @@ export interface Product {
   sortOrder: number;
 }
 
-export interface CategoryExtra {
+// ── Complementos estilo iFood ──────────────────────────
+// Grupo de complementos (ex: "Escolha o molho", "Adicionais")
+export interface ExtraGroup {
+  id: string;
+  name: string;       // Nome do grupo (ex: "Adicionais de carne")
+  minQty: number;     // Mínimo de itens (0 = opcional)
+  maxQty: number;     // Máximo de itens (0 = ilimitado)
+  isRequired: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  items: ExtraItem[];
+}
+
+// Item individual dentro de um grupo
+export interface ExtraItem {
   id: string;
   name: string;
   price: number;
   isActive: boolean;
+  sortOrder: number;
 }
 
 // Alias for backward compatibility in cart/order serialization
-export type ProductExtra = CategoryExtra;
+export type ProductExtra = ExtraItem;
+export type CategoryExtra = ExtraItem; // backward compat
 
 export interface Category {
   id: string;
@@ -28,14 +44,14 @@ export interface Category {
   order: number;
   photoUrl?: string;
   isActive: boolean;
-  extras?: CategoryExtra[];
+  extraGroups?: ExtraGroup[];
 }
 
 export interface CartItem {
   id: string;
   product: Product;
   quantity: number;
-  selectedExtras: ProductExtra[];
+  selectedExtras: ProductExtra[]; // flat list for price calculation
   observation: string;
 }
 
@@ -142,4 +158,3 @@ export interface CashierLog {
     totalSales: number;
   };
 }
-
