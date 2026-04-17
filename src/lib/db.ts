@@ -328,25 +328,40 @@ export const db = {
   async updateProduct(product: Product) {
     const isNew = product.id.startsWith('prod-');
 
-    // 1. Upsert main product and capture the real ID returned by the database
-    const { data: savedProduct, error: pError } = await supabase
+    const baseData: any = {
+      id: isNew ? undefined : product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      cost_price: product.costPrice,
+      category_id: product.categoryId,
+      is_active: product.isActive,
+      image_url: product.image,
+      is_combo: product.isCombo,
+      combo_items: product.comboItems,
+      sort_order: product.sortOrder,
+    };
+
+    // Try with disabled_extra_ids first
+    const dataWithExtras = { ...baseData, disabled_extra_ids: product.disabledExtraIds || [] };
+
+    let { data: savedProduct, error: pError } = await supabase
       .from('products')
-      .upsert({
-        id: isNew ? undefined : product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        cost_price: product.costPrice,
-        category_id: product.categoryId,
-        is_active: product.isActive,
-        image_url: product.image,
-        is_combo: product.isCombo,
-        combo_items: product.comboItems,
-        sort_order: product.sortOrder,
-        disabled_extra_ids: product.disabledExtraIds || []
-      })
+      .upsert(dataWithExtras)
       .select()
       .single();
+
+    // If column doesn't exist, retry without it
+    if (pError && (pError.code === '42703' || pError.message?.includes('disabled_extra_ids'))) {
+      console.warn('Coluna disabled_extra_ids não encontrada. Salvando sem ela.');
+      const retry = await supabase
+        .from('products')
+        .upsert(baseData)
+        .select()
+        .single();
+      savedProduct = retry.data;
+      pError = retry.error;
+    }
 
     if (pError) {
       console.error('Erro ao salvar produto:', pError);
