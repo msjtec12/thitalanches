@@ -3,7 +3,7 @@ import { useOrders } from '@/contexts/OrderContext';
 import { ManualOrderForm } from '@/components/ManualOrderForm';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { db } from '@/lib/db';
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3, Plus } from 'lucide-react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuManagement } from '@/components/MenuManagement';
@@ -12,7 +12,7 @@ import { InventoryReport } from '@/components/InventoryReport';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,7 @@ export default function AdminDashboard() {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [activeTab, setActiveTab] = useState('orders');
+  const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     // Only trust session if role is also set (double check)
     return sessionStorage.getItem('admin_authenticated') === 'true' && userRole === 'admin';
@@ -57,6 +58,18 @@ export default function AdminDashboard() {
       setPinError(true);
     }
   };
+
+  // Keyboard shortcut handler for opening new order
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === '+' || e.key === '=') && !isManualOrderOpen) {
+        e.preventDefault();
+        setIsManualOrderOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isManualOrderOpen]);
 
   if (!isAuthenticated) {
     return (
@@ -139,12 +152,16 @@ export default function AdminDashboard() {
                 </div>
               </Link>
               
-              <Link 
-                to="/" 
-                className="flex md:hidden items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-primary"
-              >
-                <ShoppingBag className="w-4 h-4" />
-              </Link>
+              <div className="flex md:hidden items-center gap-2">
+                <Button
+                  onClick={() => setIsManualOrderOpen(true)}
+                  size="sm"
+                  className="gap-1.5 h-8 px-3 rounded-full bg-primary hover:bg-red-700 text-white font-bold text-xs shadow-lg shadow-primary/20"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Novo</span>
+                </Button>
+              </div>
             </div>
 
             <div className="flex items-center justify-center sm:justify-start">
@@ -172,7 +189,22 @@ export default function AdminDashboard() {
               </TabsList>
             </div>
 
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-3">
+              {/* ── Novo Pedido Button in Header ── */}
+              <Button
+                onClick={() => setIsManualOrderOpen(true)}
+                className="gap-2 h-9 px-4 rounded-full bg-primary hover:bg-red-700 text-white font-bold text-xs shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all group"
+                title="Novo Pedido (Atalho: +)"
+              >
+                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
+                <span className="font-black italic tracking-tighter uppercase">Novo Pedido</span>
+                <div className="flex items-center justify-center bg-black/20 rounded px-1.5 py-0.5 text-[9px] font-bold border border-white/10">
+                  +
+                </div>
+              </Button>
+              
+              <div className="w-px h-6 bg-white/10"></div>
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-primary">
@@ -252,7 +284,12 @@ export default function AdminDashboard() {
             <InventoryReport />
           </TabsContent>
         </main>
-        {activeTab !== 'settings' && <ManualOrderForm />}
+        
+        {/* Manual Order Form - Full page overlay */}
+        <ManualOrderForm 
+          isOpen={isManualOrderOpen} 
+          onClose={() => setIsManualOrderOpen(false)} 
+        />
       </Tabs>
   );
 }
