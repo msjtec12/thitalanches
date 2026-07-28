@@ -3,7 +3,8 @@ import { useOrders } from '@/contexts/OrderContext';
 import { ManualOrderForm } from '@/components/ManualOrderForm';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { db } from '@/lib/db';
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3, Plus } from 'lucide-react';
+import { KitchenKDS } from '@/components/KitchenKDS';
+import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3, Plus, ChefHat } from 'lucide-react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuManagement } from '@/components/MenuManagement';
@@ -170,6 +171,10 @@ export default function AdminDashboard() {
                   <ListChecks className="w-4 h-4" />
                   <span className="hidden xs:inline">Pedidos</span>
                 </TabsTrigger>
+                <TabsTrigger value="kds" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
+                  <ChefHat className="w-4 h-4" />
+                  <span className="hidden xs:inline">Cozinha KDS</span>
+                </TabsTrigger>
                 {userRole === 'admin' && (
                   <TabsTrigger value="menu" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
                     <UtensilsCrossed className="w-4 h-4" />
@@ -270,6 +275,10 @@ export default function AdminDashboard() {
           <TabsContent value="orders" className="space-y-6 outline-none">
             <DashboardStats />
             <KanbanBoard />
+          </TabsContent>
+
+          <TabsContent value="kds" className="outline-none">
+            <KitchenKDS />
           </TabsContent>
 
           <TabsContent value="menu" className="outline-none">

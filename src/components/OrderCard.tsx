@@ -3,7 +3,7 @@ import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle, Lock } from 'lucide-react';
+import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle, Lock, Flame } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -89,6 +89,40 @@ export function OrderCard({ order }: OrderCardProps) {
     if (order.status !== 'received' && order.status !== 'preparing') return false;
     const diff = (new Date().getTime() - new Date(order.createdAt).getTime()) / 60000;
     return diff > settings.prepTime;
+  };
+
+  const handleNotifyPreparing = () => {
+    if (!order.customerPhone) return;
+    const trackingLink = `${window.location.origin}/?order=${order.id}`;
+    const message = encodeURIComponent(
+      `*🍳 SEU PEDIDO ENTROU EM PREPARO! (#${order.number})*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Olá, *${order.customerName || 'Cliente'}*!\n` +
+      `Nosso chapeiro já começou a preparar seu pedido com todo o carinho! 🔥\n\n` +
+      `🕒 *Tempo estimado:* ~${settings.prepTime || 30} min\n` +
+      `🔗 *Acompanhe em tempo real:*\n${trackingLink}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `_Enviado via ${settings.name}_`
+    );
+    window.open(`https://wa.me/${formatWhatsAppNumber(order.customerPhone)}?text=${message}`, '_blank');
+  };
+
+  const handleNotifyDelivery = () => {
+    if (!order.customerPhone) return;
+    const trackingLink = `${window.location.origin}/?order=${order.id}`;
+    const message = encodeURIComponent(
+      `*🛵 SEU PEDIDO SAIU PARA ENTREGA! (#${order.number})*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Olá, *${order.customerName || 'Cliente'}*!\n` +
+      `Nosso entregador já está a caminho do seu endereço! 🚀\n\n` +
+      `🏠 *Endereço:* ${order.deliveryInfo?.street || ''}, ${order.deliveryInfo?.number || ''}\n` +
+      `💰 *Total:* ${formatPrice(order.total)}\n\n` +
+      `🔗 *Acompanhe em tempo real:*\n${trackingLink}\n\n` +
+      `Por favor, fique atento para receber o entregador! 😉\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `_Enviado via ${settings.name}_`
+    );
+    window.open(`https://wa.me/${formatWhatsAppNumber(order.customerPhone)}?text=${message}`, '_blank');
   };
 
   const handleNotifyReady = () => {
@@ -377,6 +411,30 @@ export function OrderCard({ order }: OrderCardProps) {
                   <MessageSquare className="w-3.5 h-3.5" />
                 </Button>
               )}
+              {order.status === 'preparing' && order.customerPhone && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleNotifyPreparing} 
+                  className="h-8 gap-1 border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-black"
+                  title="Avisar cliente que está em preparo"
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Preparo</span>
+                </Button>
+              )}
+              {order.pickupType === 'delivery' && order.customerPhone && (order.status === 'ready' || order.status === 'preparing') && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleNotifyDelivery} 
+                  className="h-8 gap-1 border-blue-500/50 text-blue-400 hover:bg-blue-500 hover:text-white"
+                  title="Avisar cliente que saiu para entrega"
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Saiu p/ Entrega</span>
+                </Button>
+              )}
               {order.status === 'ready' && order.customerPhone && (
                 <Button 
                   variant="outline" 
@@ -386,7 +444,7 @@ export function OrderCard({ order }: OrderCardProps) {
                   title="Avisar que está pronto"
                 >
                   <CheckCircle className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Avisar</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Pronto</span>
                 </Button>
               )}
             </div>

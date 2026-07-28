@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare, Search } from 'lucide-react';
+import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare, Search, Copy } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { PickupType, PaymentMethod } from '@/types/order';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
@@ -52,6 +52,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const [changeAmount, setChangeAmount] = useState('');
   const [lastOrderUrl, setLastOrderUrl] = useState<string>('');
   const [customerWhatsAppUrl, setCustomerWhatsAppUrl] = useState<string>('');
+  const [copiedPix, setCopiedPix] = useState(false);
 
   // ── Cupom & Promoções ──
   const [couponInput, setCouponInput] = useState('');
@@ -877,6 +878,36 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
               Seu pedido foi recebido. Você pode acompanhar o status abaixo ou via WhatsApp.
             </p>
           </div>
+
+          {/* ── Pix Copia e Cola (Estilo iFood / Anota.ai) ── */}
+          {paymentMethod === 'pix' && (
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-left space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">💎</span>
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-500">Pagamento via PIX</h4>
+                  <p className="text-[11px] text-muted-foreground">Copie o código abaixo e pague no app do seu banco:</p>
+                </div>
+              </div>
+
+              <div className="bg-background border border-border p-2.5 rounded-xl font-mono text-[10px] break-all select-all text-muted-foreground">
+                {`00020126580014BR.GOV.BCB.PIX0136${settings.whatsappNumber || '16999999999'}520400005303986540${grandTotal.toFixed(2)}5802BR5913Thita Lanches6014Ribeirao Preto62070503***6304`}
+              </div>
+
+              <Button
+                onClick={() => {
+                  const pixStr = `00020126580014BR.GOV.BCB.PIX0136${settings.whatsappNumber || '16999999999'}520400005303986540${grandTotal.toFixed(2)}5802BR5913Thita Lanches6014Ribeirao Preto62070503***6304`;
+                  navigator.clipboard.writeText(pixStr);
+                  setCopiedPix(true);
+                  setTimeout(() => setCopiedPix(false), 3000);
+                }}
+                className={`w-full gap-2 font-bold h-10 ${copiedPix ? 'bg-emerald-600 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`}
+              >
+                {copiedPix ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copiedPix ? 'Código PIX Copiado!' : 'Copiar Código PIX'}
+              </Button>
+            </div>
+          )}
 
           <div className="bg-secondary/30 p-4 rounded-xl space-y-3">
             {customerWhatsAppUrl && (
