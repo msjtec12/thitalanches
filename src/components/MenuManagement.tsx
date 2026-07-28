@@ -563,6 +563,25 @@ export function MenuManagement() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="badge" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Selo / Destaque (iFood Style)</Label>
+                      <Select 
+                        value={editingProduct.badge || 'none'} 
+                        onValueChange={(val) => setEditingProduct({...editingProduct, badge: val === 'none' ? undefined : val as any})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um selo de destaque" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum selo</SelectItem>
+                          <SelectItem value="bestseller">🔥 Mais Vendido</SelectItem>
+                          <SelectItem value="promo">🏷️ Promoção</SelectItem>
+                          <SelectItem value="new">✨ Novo</SelectItem>
+                          <SelectItem value="highlight">⭐ Destaque</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
                       <Label htmlFor="desc" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Descrição</Label>
                       <Textarea 
                         id="desc" 

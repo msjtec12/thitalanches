@@ -20,8 +20,8 @@ interface CartProps {
 }
 
 export function Cart({ desktopInline = false }: CartProps = {}) {
-  const { items, removeItem, total, itemCount, clearCart } = useCart();
-  const { addOrder, settings } = useOrders();
+  const { items, removeItem, total, itemCount, clearCart, addItem } = useCart();
+  const { addOrder, settings, products, categories } = useOrders();
   const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
@@ -46,6 +46,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   });
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [addressError, setAddressError] = useState('');
+  const [cepSuccess, setCepSuccess] = useState(false);
   const [generalObservation, setGeneralObservation] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [changeAmount, setChangeAmount] = useState('');
@@ -56,13 +57,16 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const deliveryFee = baseDeliveryFee + (pickupType === 'delivery' && deliveryInfo.addressType === 'outros' ? 0.50 : 0);
   const grandTotal = total + deliveryFee;
 
-  const handleSearchCep = async () => {
-    if ((deliveryInfo.cep || '').length < 8) return;
+  const handleSearchCep = async (overrideCep?: string) => {
+    const targetCep = overrideCep || deliveryInfo.cep || '';
+    const clean = targetCep.replace(/\D/g, '');
+    if (clean.length < 8) return;
     setIsSearchingCep(true);
     setAddressError('');
-    const data = await fetchAddressFromCep(deliveryInfo.cep as string);
+    setCepSuccess(false);
+    const data = await fetchAddressFromCep(clean);
     if (!data) {
-      setAddressError('CEP não encontrado.');
+      setAddressError('CEP não encontrado. Verifique o número digitado.');
       setIsSearchingCep(false);
       return;
     }
@@ -79,14 +83,13 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
       dist = getDistanceKm(settings.storeLat, settings.storeLng, lat, lng);
     }
     
-    // Fee will be calculated based on dist
     if (dist > 12) {
       setAddressError(`Desculpe, este endereço está a ${dist.toFixed(1)}km, além do nosso raio máximo de entrega (12km). Para qualquer dúvida, entre em contato conosco no WhatsApp.`);
-    } else if (!lat || !lng) {
-      setAddressError('CEP encontrado, mas não conseguimos validar a distância. Verifique com o atendente via WhatsApp.');
+    } else {
+      setCepSuccess(true);
     }
 
-    setDeliveryInfo({...deliveryInfo, ...data, distanceKm: dist});
+    setDeliveryInfo({ ...deliveryInfo, ...data, distanceKm: dist });
     setIsSearchingCep(false);
   };
 
@@ -319,6 +322,47 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                 })}
               </div>
 
+              {/* ── Sugestões de Acompanhamentos (Upsell iFood Style) ── */}
+              {(() => {
+                const cartProductIds = items.map(i => i.product.id);
+                const upsellProducts = products
+                  .filter(p => p.isActive && !cartProductIds.includes(p.id))
+                  .filter(p => {
+                    const catName = (categories.find(c => c.id === p.categoryId)?.name || '').toLowerCase();
+                    return catName.includes('bebida') || catName.includes('batata') || catName.includes('sobremesa') || catName.includes('molho') || catName.includes('milk shake') || p.badge === 'bestseller';
+                  })
+                  .slice(0, 4);
+
+                if (upsellProducts.length === 0) return null;
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      <span>🥤 Peça também</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {upsellProducts.map(p => (
+                        <div key={p.id} className="p-2.5 bg-secondary/50 hover:bg-secondary rounded-xl border border-border/50 flex flex-col justify-between transition-all">
+                          <div>
+                            <p className="text-xs font-semibold leading-tight line-clamp-1">{p.name}</p>
+                            <p className="text-xs font-bold text-primary mt-1">{formatPrice(p.price)}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => addItem(p, 1, [], '')}
+                            className="mt-2 h-7 text-[11px] font-bold border-primary/30 text-primary hover:bg-primary hover:text-white rounded-lg w-full gap-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Adicionar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="space-y-2">
                 <Label htmlFor="observation">Observação geral</Label>
                 <Textarea
@@ -410,18 +454,35 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
           {pickupType === 'delivery' && (
             <div className="space-y-4 p-4 border border-border rounded-xl bg-secondary/20">
               <div className="space-y-2">
-                <Label>CEP</Label>
+                <div className="flex items-center justify-between">
+                  <Label>CEP <span className="text-xs text-muted-foreground font-normal">(digite para buscar automático)</span></Label>
+                  {isSearchingCep && <span className="text-xs text-primary font-medium animate-pulse">Buscando CEP...</span>}
+                </div>
                 <div className="flex gap-2">
                   <Input
                     placeholder="00000-000"
                     value={deliveryInfo.cep || ''}
-                    onChange={(e) => setDeliveryInfo({...deliveryInfo, cep: e.target.value})}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      const formatted = raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw;
+                      setDeliveryInfo({ ...deliveryInfo, cep: formatted });
+                      if (raw.length === 8) {
+                        handleSearchCep(raw);
+                      }
+                    }}
                     maxLength={9}
+                    className="font-medium"
                   />
-                  <Button disabled={isSearchingCep || (deliveryInfo.cep || '').length < 8} onClick={handleSearchCep} variant="secondary">
+                  <Button disabled={isSearchingCep || (deliveryInfo.cep || '').replace(/\D/g, '').length < 8} onClick={() => handleSearchCep()} variant="secondary">
                      <Search className="w-4 h-4" />
                   </Button>
                 </div>
+                {cepSuccess && (
+                  <p className="text-[11px] font-bold text-emerald-500 flex items-center gap-1 mt-1">
+                    <Check className="w-3.5 h-3.5" />
+                    Endereço encontrado e preenchido automaticamente!
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-4 gap-2">

@@ -11,6 +11,7 @@ export interface Product {
   comboItems?: string[]; // IDs of products that are part of this combo
   sortOrder: number;
   disabledExtraIds?: string[]; // IDs of extra items disabled for this specific product
+  badge?: 'bestseller' | 'promo' | 'new' | 'highlight';
 }
 
 // ── Complementos estilo iFood ──────────────────────────

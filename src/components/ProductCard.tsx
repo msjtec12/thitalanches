@@ -112,6 +112,30 @@ export function ProductCard({ product }: ProductCardProps) {
 
         <div className="p-4 flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
+            {product.badge && (
+              <div className="mb-1.5">
+                {product.badge === 'bestseller' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/15 text-red-500 border border-red-500/30">
+                    🔥 Mais Vendido
+                  </span>
+                )}
+                {product.badge === 'promo' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                    🏷️ Promoção
+                  </span>
+                )}
+                {product.badge === 'new' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                    ✨ Novo
+                  </span>
+                )}
+                {product.badge === 'highlight' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                    ⭐ Destaque
+                  </span>
+                )}
+              </div>
+            )}
             <h3 className="font-semibold text-foreground leading-tight">
               {Number(product.sortOrder) > 0
                 ? `${product.sortOrder.toString().padStart(2, '0')}. `

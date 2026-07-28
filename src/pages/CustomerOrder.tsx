@@ -7,10 +7,14 @@ import { ProductList } from '@/components/ProductList';
 import { Cart } from '@/components/Cart';
 import { OrderTracking } from '@/components/OrderTracking';
 
+import { Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+
 export default function CustomerOrder() {
   const { products, categories, isLoadingData } = useOrders();
   const [searchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const initialCategorySet = useRef(false);
 
@@ -31,16 +35,46 @@ export default function CustomerOrder() {
 
         {/* Coluna principal: categoria + produtos */}
         <div className="flex-1 min-w-0">
+          {/* Barra de Pesquisa iFood Style */}
+          <div className="container pt-4 pb-2">
+            <div className="relative max-w-xl">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Busque por lanches, combos, bebidas ou ingredientes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10 h-11 bg-secondary/40 border-border/60 focus:border-primary focus:bg-background rounded-full transition-all text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <p className="text-xs text-muted-foreground mt-2 ml-3">
+                Exibindo resultados para <b className="text-foreground">"{searchQuery}"</b>
+              </p>
+            )}
+          </div>
+
           <CategoryNav
             categories={categories}
             activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
+            onCategoryChange={(catId) => {
+              setActiveCategory(catId);
+              if (catId) setSearchQuery('');
+            }}
           />
           <main className="container py-2">
             <ProductList
               products={activeProducts}
               categories={categories}
               activeCategory={activeCategory}
+              searchQuery={searchQuery}
               isLoading={isLoadingData}
             />
           </main>

@@ -322,6 +322,7 @@ export const db = {
       comboItems: p.combo_items || [],
       sortOrder: p.sort_order || 0,
       disabledExtraIds: p.disabled_extra_ids || [],
+      badge: p.badge || undefined,
     }));
   },
 
@@ -340,6 +341,7 @@ export const db = {
       is_combo: product.isCombo,
       combo_items: product.comboItems,
       sort_order: product.sortOrder,
+      badge: product.badge || null,
     };
 
     // Try with disabled_extra_ids first
