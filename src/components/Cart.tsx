@@ -21,7 +21,7 @@ interface CartProps {
 
 export function Cart({ desktopInline = false }: CartProps = {}) {
   const { items, removeItem, total, itemCount, clearCart, addItem } = useCart();
-  const { addOrder, settings, products, categories } = useOrders();
+  const { addOrder, settings, products, categories, orders } = useOrders();
   const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
@@ -53,9 +53,88 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const [lastOrderUrl, setLastOrderUrl] = useState<string>('');
   const [customerWhatsAppUrl, setCustomerWhatsAppUrl] = useState<string>('');
 
+  // ── Cupom & Promoções ──
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountType: 'percent' | 'fixed' | 'free_delivery';
+    discountValue: number;
+    discountAmount: number;
+  } | null>(null);
+  const [couponError, setCouponError] = useState('');
+
+  // Frete grátis & Descontos
+  const freeDeliveryThreshold = settings.freeDeliveryThreshold || 60;
+  const isFreeDeliveryQualified = total >= freeDeliveryThreshold || (appliedCoupon?.discountType === 'free_delivery');
+  
   const baseDeliveryFee = pickupType === 'delivery' ? (deliveryInfo.distanceKm <= 12 ? (calculateDeliveryFee(deliveryInfo.distanceKm) || 0) : 0) : 0;
-  const deliveryFee = baseDeliveryFee + (pickupType === 'delivery' && deliveryInfo.addressType === 'outros' ? 0.50 : 0);
-  const grandTotal = total + deliveryFee;
+  const rawDeliveryFee = baseDeliveryFee + (pickupType === 'delivery' && deliveryInfo.addressType === 'outros' ? 0.50 : 0);
+  const deliveryFee = isFreeDeliveryQualified && pickupType === 'delivery' ? 0 : rawDeliveryFee;
+
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === 'percent') {
+      discountAmount = (total * appliedCoupon.discountValue) / 100;
+    } else if (appliedCoupon.discountType === 'fixed') {
+      discountAmount = Math.min(total, appliedCoupon.discountValue);
+    }
+  }
+
+  const grandTotal = Math.max(0, total - discountAmount) + deliveryFee;
+  const remainingForFreeDelivery = Math.max(0, freeDeliveryThreshold - total);
+  const freeDeliveryProgressPct = Math.min(100, (total / freeDeliveryThreshold) * 100);
+
+  // Aplicação de Cupons
+  const handleApplyCoupon = () => {
+    setCouponError('');
+    const codeClean = couponInput.trim().toUpperCase();
+    if (!codeClean) return;
+
+    const validCoupons: Record<string, { type: 'percent' | 'fixed' | 'free_delivery'; val: number; minVal: number; desc: string }> = {
+      'THITA10': { type: 'percent', val: 10, minVal: 0, desc: '10% de desconto' },
+      'PRIMEIRACOMPRA': { type: 'fixed', val: 5, minVal: 20, desc: 'R$ 5,00 OFF em compras acima de R$ 20' },
+      'FRETEGRATIS': { type: 'free_delivery', val: 0, minVal: 30, desc: 'Frete Grátis' },
+      'THITA5': { type: 'fixed', val: 5, minVal: 0, desc: 'R$ 5,00 de desconto' }
+    };
+
+    const found = validCoupons[codeClean];
+    if (!found) {
+      setCouponError('Cupom inválido ou expirado.');
+      return;
+    }
+
+    if (found.minVal > 0 && total < found.minVal) {
+      setCouponError(`Valor mínimo do pedido para este cupom: ${formatPrice(found.minVal)}`);
+      return;
+    }
+
+    let calcAmount = 0;
+    if (found.type === 'percent') {
+      calcAmount = (total * found.val) / 100;
+    } else if (found.type === 'fixed') {
+      calcAmount = Math.min(total, found.val);
+    }
+
+    setAppliedCoupon({
+      code: codeClean,
+      discountType: found.type,
+      discountValue: found.val,
+      discountAmount: calcAmount
+    });
+    setCouponInput('');
+  };
+
+  // Recompra Rápida pelo Telefone
+  const cleanPhone = unmaskPhone(customerPhone);
+  const pastOrder = (cleanPhone.length >= 10 && orders && orders.length > 0)
+    ? orders.find(o => o.customerPhone && unmaskPhone(o.customerPhone) === cleanPhone)
+    : null;
+
+  const handleReorderLastItems = (orderToRepeat: any) => {
+    orderToRepeat.items.forEach((item: any) => {
+      addItem(item.product, item.quantity, item.selectedExtras || [], item.observation || '');
+    });
+  };
 
   const handleSearchCep = async (overrideCep?: string) => {
     const targetCep = overrideCep || deliveryInfo.cep || '';
@@ -207,6 +286,8 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
         ? `🛵 *TAXA DE ENTREGA: ${formatPrice(deliveryFee)}*\n`
         : '';
 
+      const couponText = appliedCoupon ? `🏷️ *CUPOM:* ${appliedCoupon.code} (-${formatPrice(discountAmount)})\n` : '';
+
       const message = encodeURIComponent(
         `*🆕 NOVO PEDIDO #${newOrder.number}*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -219,6 +300,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
         (generalObservation ? `📝 *OBSERVAÇÃO:* ${generalObservation}\n\n` : '') +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         deliveryFeeText +
+        couponText +
         `*TOTAL: ${formatPrice(grandTotal)}*\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
         `🔗 *LINK DE ACOMPANHAMENTO:*\n${trackingLink}\n\n` +
@@ -282,6 +364,38 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
 
       {step === 'cart' && (
         <div className="mt-4 space-y-4">
+          {/* ── Barra Progressiva de Frete Grátis ── */}
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1.5">
+            <div className="flex justify-between items-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <span>🛵 Frete Grátis (pedidos acima de {formatPrice(freeDeliveryThreshold)})</span>
+              <span>{isFreeDeliveryQualified ? 'Conquistado! 🎉' : `Faltam ${formatPrice(remainingForFreeDelivery)}`}</span>
+            </div>
+            <div className="w-full h-2 bg-emerald-500/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-emerald-500 transition-all duration-300 rounded-full" 
+                style={{ width: `${freeDeliveryProgressPct}%` }} 
+              />
+            </div>
+          </div>
+
+          {/* ── Banner de Recompra Rápida ── */}
+          {pastOrder && items.length === 0 && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-2 animate-in fade-in">
+              <div>
+                <p className="text-xs font-bold text-amber-500">Olá, {pastOrder.customerName}! 🔄</p>
+                <p className="text-[11px] text-muted-foreground">Repetir seu último pedido #{pastOrder.number}?</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleReorderLastItems(pastOrder)}
+                className="h-8 text-xs font-bold border-amber-500/40 text-amber-500 hover:bg-amber-500 hover:text-white shrink-0"
+              >
+                Repetir 🔄
+              </Button>
+            </div>
+          )}
+
           {items.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               Seu carrinho está vazio
@@ -374,10 +488,57 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                 />
               </div>
 
+              {/* ── Cupom de Desconto ── */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <Label htmlFor="coupon" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Cupom de Desconto</Label>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">🏷️</span>
+                      <div>
+                        <span className="text-xs font-bold text-emerald-500">{appliedCoupon.code}</span>
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                          Desconto: {appliedCoupon.discountType === 'free_delivery' ? 'Frete Grátis' : `- ${formatPrice(appliedCoupon.discountAmount)}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button onClick={() => setAppliedCoupon(null)} className="text-muted-foreground hover:text-destructive p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      id="coupon"
+                      placeholder="Digite o cupom (ex: THITA10)"
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value); setCouponError(''); }}
+                      className="h-9 text-xs uppercase"
+                    />
+                    <Button size="sm" variant="secondary" onClick={handleApplyCoupon} className="h-9 font-bold">
+                      Aplicar
+                    </Button>
+                  </div>
+                )}
+                {couponError && <p className="text-xs text-red-500 font-medium">{couponError}</p>}
+              </div>
+
               <div className="border-t border-border pt-4">
-                <div className="flex justify-between text-lg font-semibold mb-4">
-                  <span>Total</span>
-                  <span className="text-primary">{formatPrice(total)}</span>
+                <div className="space-y-1.5 mb-4">
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>{formatPrice(total)}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm font-bold text-emerald-500">
+                      <span>Desconto cupom ({appliedCoupon?.code})</span>
+                      <span>- {formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg font-bold pt-1 border-t border-border/50">
+                    <span>Total estimado</span>
+                    <span className="text-primary">{formatPrice(Math.max(0, total - discountAmount))}</span>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -392,7 +553,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="phone">WhatsApp (opcional)</Label>
+                    <Label htmlFor="phone">WhatsApp (para confirmação)</Label>
                     <Input
                       id="phone"
                       placeholder="(00) 00000-0000"
@@ -404,11 +565,11 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
                 </div>
 
                 <Button
-                  className="w-full mt-4"
+                  className="w-full mt-4 h-12 text-base font-bold shadow-lg shadow-primary/20"
                   onClick={handleCheckout}
                   disabled={!customerName.trim()}
                 >
-                  Continuar
+                  Continuar para pagamento
                 </Button>
               </div>
             </>

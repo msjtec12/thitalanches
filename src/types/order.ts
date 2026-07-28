@@ -138,6 +138,16 @@ export interface StoreSettings {
   primaryColorHover?: string;
   // Notifications
   isSoundEnabled?: boolean;
+  // Delivery & Promotions
+  freeDeliveryThreshold?: number; // Valor mínimo para frete grátis (ex: 60.00)
+}
+
+export interface Coupon {
+  code: string;
+  discountType: 'percent' | 'fixed' | 'free_delivery';
+  discountValue: number; // Ex: 10 (%) ou 5.00 (R$)
+  minOrderValue?: number;
+  description?: string;
 }
 
 export interface CashierLog {

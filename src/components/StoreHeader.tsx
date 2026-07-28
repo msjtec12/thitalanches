@@ -1,6 +1,7 @@
 import { useOrders } from '@/contexts/OrderContext';
 import { Link } from 'react-router-dom';
 import { LayoutDashboard } from 'lucide-react';
+import { checkStoreOpenStatus } from '@/utils/openingHours';
 
 export function StoreHeader() {
   const { settings } = useOrders();
@@ -84,26 +85,41 @@ export function StoreHeader() {
           </Link>
 
           {/* Status + Admin */}
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shadow-inner ${
-              settings.isOpen
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
-                : 'bg-red-500/10 text-red-400 border border-red-500/25'
-            }`}>
-              <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
-                settings.isOpen ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-400'
-              }`} />
-              {settings.isOpen ? 'Loja Aberta' : 'Loja Fechada'}
-            </div>
+          {(() => {
+            const openStatus = checkStoreOpenStatus(settings);
+            return (
+              <div className="flex items-center gap-3">
+                <div 
+                  className={`flex flex-col sm:flex-row items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shadow-inner ${
+                    openStatus.isOpen
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
+                      : 'bg-red-500/10 text-red-400 border border-red-500/25'
+                  }`}
+                  title={openStatus.nextTimeText}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
+                      openStatus.isOpen ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-red-400'
+                    }`} />
+                    <span>{openStatus.statusText}</span>
+                  </div>
+                  {openStatus.nextTimeText && (
+                    <span className="text-[9px] font-normal text-white/60 lowercase hidden lg:inline">
+                      • {openStatus.nextTimeText}
+                    </span>
+                  )}
+                </div>
 
-            <Link
-              to="/admin"
-              className="p-2 text-zinc-500 hover:text-primary transition-all rounded-full hover:bg-white/5 border border-transparent hover:border-primary/20"
-              title="Acesso Administrativo"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-            </Link>
-          </div>
+                <Link
+                  to="/admin"
+                  className="p-2 text-zinc-500 hover:text-primary transition-all rounded-full hover:bg-white/5 border border-transparent hover:border-primary/20"
+                  title="Acesso Administrativo"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                </Link>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </header>
