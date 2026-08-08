@@ -1,0 +1,21 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Executa todos os dias às 12:00 UTC (9:00 no horário de Brasília)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Permite disparar manualmente no painel do GitHub
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        run: |
+          echo "Disparando requisição Heartbeat para manter o Supabase ativo..."
+          curl -s -f \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsbWtubHV6bXhoeGZxc3lydG94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNzI0OTQsImV4cCI6MjEwMDg0ODQ5NH0.Q-QMEo3J1s86bOuys8XZDwM5VsGXLCSlW0GrDGSbprw" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsbWtubHV6bXhoeGZxc3lydG94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNzI0OTQsImV4cCI6MjEwMDg0ODQ5NH0.Q-QMEo3J1s86bOuys8XZDwM5VsGXLCSlW0GrDGSbprw" \
+            "https://hlmknluzmxhxfqsyrtox.supabase.co/rest/v1/categories?select=id&limit=1"
+          echo ""
+          echo "✅ Heartbeat realizado com sucesso! Supabase mantido ativo."
