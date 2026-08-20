@@ -279,15 +279,35 @@ export function OrderCard({ order }: OrderCardProps) {
         </div>
 
         {order.pickupType === 'delivery' && order.deliveryInfo && (
-          <div className="bg-secondary/30 p-2 rounded text-xs space-y-0.5 border border-border/50">
-            <p className="font-bold flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-primary" />
-              {order.deliveryInfo.street}, {order.deliveryInfo.number}
+          <div className="bg-zinc-950/80 p-2.5 rounded-xl text-xs space-y-1.5 border border-white/10">
+            <div className="flex items-start justify-between gap-1">
+              <p className="font-extrabold text-white flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                {order.deliveryInfo.street}, {order.deliveryInfo.number}
+              </p>
+              {order.deliveryInfo.deliveryFee ? (
+                <span className="text-[10px] font-black text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                  +{formatPrice(order.deliveryInfo.deliveryFee)}
+                </span>
+              ) : null}
+            </div>
+
+            <p className="text-[11px] text-zinc-400 pl-5">
+              {order.deliveryInfo.neighborhood ? `Bairro: ${order.deliveryInfo.neighborhood}` : ''}
+              {order.deliveryInfo.complement ? ` • Compl: ${order.deliveryInfo.complement}` : ''}
+              {order.deliveryInfo.reference ? ` (Ref: ${order.deliveryInfo.reference})` : ''}
             </p>
-            <p className="text-muted-foreground ml-4">
-              {settings.neighborhoods.find(n => n.id === order.deliveryInfo?.neighborhoodId)?.name}
-              {order.deliveryInfo.complement ? ` • ${order.deliveryInfo.complement}` : ''}
-            </p>
+
+            <div className="pt-1 border-t border-white/5 pl-5">
+              <a 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${order.deliveryInfo.street}, ${order.deliveryInfo.number}, ${order.deliveryInfo.neighborhood || ''}, ${order.deliveryInfo.city || 'Ibitinga'}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[10px] font-black text-amber-400 hover:text-amber-300 hover:underline flex items-center gap-1"
+              >
+                🗺️ Abrir rota no Google Maps / Waze
+              </a>
+            </div>
           </div>
         )}
 
