@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare, Search, Copy } from 'lucide-react';
+import { ShoppingCart, Trash2, X, Check, CreditCard, Banknote, MapPin, Truck, Store as StoreIcon, AlertTriangle, MessageSquare, Search, Copy, Utensils } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { PickupType, PaymentMethod } from '@/types/order';
 import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
@@ -23,11 +23,16 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const { items, removeItem, total, itemCount, clearCart, addItem } = useCart();
   const { addOrder, settings, products, categories, orders } = useOrders();
   const [searchParams] = useSearchParams();
+
+  const urlOrigin = searchParams.get('origin');
+  const urlTable = searchParams.get('table') || searchParams.get('mesa') || sessionStorage.getItem('thita_active_table');
+  const isTableOrder = urlOrigin === 'table' || !!urlTable;
+
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
   const [customerName, setCustomerName] = useState(() => localStorage.getItem('thita_customer_name') || '');
   const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem('thita_customer_phone') || '');
-  const [pickupType, setPickupType] = useState<PickupType>('immediate');
+  const [pickupType, setPickupType] = useState<PickupType>(() => isTableOrder ? 'immediate' : 'immediate');
   const [scheduledTime, setScheduledTime] = useState('');
   const [deliveryInfo, setDeliveryInfo] = useState(() => {
     const saved = localStorage.getItem('thita_delivery_info');
@@ -68,9 +73,9 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   const freeDeliveryThreshold = settings.freeDeliveryThreshold || 60;
   const isFreeDeliveryQualified = total >= freeDeliveryThreshold || (appliedCoupon?.discountType === 'free_delivery');
   
-  const baseDeliveryFee = pickupType === 'delivery' ? (deliveryInfo.distanceKm <= 12 ? (calculateDeliveryFee(deliveryInfo.distanceKm) || 0) : 0) : 0;
-  const rawDeliveryFee = baseDeliveryFee + (pickupType === 'delivery' && deliveryInfo.addressType === 'outros' ? 0.50 : 0);
-  const deliveryFee = isFreeDeliveryQualified && pickupType === 'delivery' ? 0 : rawDeliveryFee;
+  const baseDeliveryFee = (!isTableOrder && pickupType === 'delivery') ? (deliveryInfo.distanceKm <= 12 ? (calculateDeliveryFee(deliveryInfo.distanceKm) || 0) : 0) : 0;
+  const rawDeliveryFee = baseDeliveryFee + (!isTableOrder && pickupType === 'delivery' && deliveryInfo.addressType === 'outros' ? 0.50 : 0);
+  const deliveryFee = isTableOrder ? 0 : (isFreeDeliveryQualified && pickupType === 'delivery' ? 0 : rawDeliveryFee);
 
   let discountAmount = 0;
   if (appliedCoupon) {
@@ -222,22 +227,23 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
   };
 
   const handleConfirmOrder = async () => {
-    const urlOrigin = searchParams.get('origin');
-    const orderOrigin = (urlOrigin === 'counter' || urlOrigin === 'counter_qr' || urlOrigin === 'table') 
-      ? urlOrigin 
-      : 'online';
+    const orderOrigin = isTableOrder ? 'table' : (urlOrigin === 'counter' || urlOrigin === 'counter_qr' ? urlOrigin : 'online');
+    const tableId = isTableOrder ? (urlTable || undefined) : undefined;
 
     const changeNote = (paymentMethod === 'cash' && changeAmount) 
       ? ` | Troco para: R$ ${changeAmount}` 
       : '';
 
+    const tableNote = isTableOrder ? `[MESA ${urlTable}] ` : '';
+
     const newOrder = await addOrder({
       origin: orderOrigin as any,
-      pickupType,
-      scheduledTime: pickupType === 'scheduled' ? scheduledTime : undefined,
-      customerName,
+      pickupType: isTableOrder ? 'immediate' : pickupType,
+      scheduledTime: (!isTableOrder && pickupType === 'scheduled') ? scheduledTime : undefined,
+      customerName: customerName.trim() || (isTableOrder ? `Mesa ${urlTable}` : 'Cliente'),
       customerPhone: customerPhone || undefined,
-      deliveryInfo: pickupType === 'delivery' ? {
+      tableNumber: tableId,
+      deliveryInfo: (!isTableOrder && pickupType === 'delivery') ? {
         ...deliveryInfo,
         deliveryFee,
         estimatedTime: getEstimatedTime(),
@@ -245,7 +251,7 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
       items,
       paymentMethod,
       paymentStatus: 'pending',
-      generalObservation: generalObservation + changeNote,
+      generalObservation: tableNote + generalObservation + changeNote,
       status: 'received',
       total: grandTotal,
     });
@@ -580,40 +586,52 @@ export function Cart({ desktopInline = false }: CartProps = {}) {
 
       {step === 'checkout' && (
         <div className="mt-4 space-y-6">
-          <div className="space-y-3">
-            <Label>Como deseja receber seu pedido?</Label>
-            <RadioGroup value={pickupType} onValueChange={(v) => setPickupType(v as PickupType)}>
-              <div className="flex items-center space-x-3 p-3 bg-secondary rounded-lg">
-                <RadioGroupItem value="delivery" id="delivery" />
-                <Label htmlFor="delivery" className="cursor-pointer flex-1">
-                  <div className="flex items-center gap-2">
-                     <Truck className="w-4 h-4 text-primary" />
-                     <span className="font-medium">Entrega (Delivery)</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Receba em casa</p>
-                </Label>
+          {isTableOrder ? (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1.5 text-white">
+              <div className="flex items-center gap-2 text-amber-400 font-black text-xs uppercase tracking-tight">
+                <Utensils className="w-4 h-4" />
+                Consumo no Local — Mesa {urlTable}
               </div>
-              <div className="flex items-center space-x-3 p-3 bg-secondary rounded-lg">
-                <RadioGroupItem value="immediate" id="immediate" />
-                <Label htmlFor="immediate" className="cursor-pointer flex-1">
-                  <div className="flex items-center gap-2">
-                     <StoreIcon className="w-4 h-4 text-primary" />
-                     <span className="font-medium">Retirada imediata</span>
-                  </div>
-                  <p className="text-[10px] text-orange-600 font-bold uppercase mt-0.5">⚠️ Pronto em 20-30 min</p>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-3 p-3 bg-secondary rounded-lg">
-                <RadioGroupItem value="scheduled" id="scheduled" />
-                <Label htmlFor="scheduled" className="cursor-pointer flex-1">
-                  <span className="font-medium">Agendar retirada</span>
-                  <p className="text-sm text-muted-foreground">Escolher horário (min. 30min de antecedência)</p>
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
+              <p className="text-[11px] text-zinc-400">
+                Seu pedido será preparado na cozinha e servido diretamente na sua mesa sem cobrança de taxa de entrega.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Label>Como deseja receber seu pedido?</Label>
+              <RadioGroup value={pickupType} onValueChange={(v) => setPickupType(v as PickupType)}>
+                <div className="flex items-center space-x-3 p-3 bg-secondary rounded-lg">
+                  <RadioGroupItem value="delivery" id="delivery" />
+                  <Label htmlFor="delivery" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                       <Truck className="w-4 h-4 text-primary" />
+                       <span className="font-medium">Entrega (Delivery)</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Receba em casa</p>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 bg-secondary rounded-lg">
+                  <RadioGroupItem value="immediate" id="immediate" />
+                  <Label htmlFor="immediate" className="cursor-pointer flex-1">
+                    <div className="flex items-center gap-2">
+                       <StoreIcon className="w-4 h-4 text-primary" />
+                       <span className="font-medium">Retirada imediata</span>
+                    </div>
+                    <p className="text-[10px] text-orange-600 font-bold uppercase mt-0.5">⚠️ Pronto em 20-30 min</p>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 bg-secondary rounded-lg">
+                  <RadioGroupItem value="scheduled" id="scheduled" />
+                  <Label htmlFor="scheduled" className="cursor-pointer flex-1">
+                    <span className="font-medium">Agendar retirada</span>
+                    <p className="text-sm text-muted-foreground">Escolher horário (min. 30min de antecedência)</p>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
 
-          {pickupType === 'delivery' && (
+          {!isTableOrder && pickupType === 'delivery' && (
             <div className="space-y-4 p-4 border border-border rounded-xl bg-secondary/20">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

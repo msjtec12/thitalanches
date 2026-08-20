@@ -7,6 +7,7 @@ import { ProductList } from '@/components/ProductList';
 import { Cart } from '@/components/Cart';
 import { OrderTracking } from '@/components/OrderTracking';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
+import { TableServiceBar } from '@/components/TableServiceBar';
 
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ export default function CustomerOrder() {
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
+      <TableServiceBar />
       <StoreHeader />
 
       {/* Layout de duas colunas no desktop */}
