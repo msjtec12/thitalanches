@@ -307,15 +307,38 @@ export const db = {
       .select('*')
       .order('sort_order', { ascending: true });
     
-    if (error) return [];
+    if (error) {
+      console.error('Erro ao buscar produtos:', error);
+      // Fallback: try querying without sort_order in case column doesn't exist
+      const fallback = await supabase.from('products').select('*');
+      if (fallback.error) {
+        console.error('Erro no fallback de produtos:', fallback.error);
+        return [];
+      }
+      return (fallback.data || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        costPrice: p.cost_price,
+        isActive: p.is_active ?? true,
+        categoryId: p.category_id,
+        image: p.image_url,
+        isCombo: p.is_combo,
+        comboItems: p.combo_items || [],
+        sortOrder: p.sort_order || 0,
+        disabledExtraIds: p.disabled_extra_ids || [],
+        badge: p.badge || undefined,
+      }));
+    }
     
-    return data.map(p => ({
+    return (data || []).map(p => ({
       id: p.id,
       name: p.name,
       description: p.description,
       price: p.price,
       costPrice: p.cost_price,
-      isActive: p.is_active,
+      isActive: p.is_active ?? true,
       categoryId: p.category_id,
       image: p.image_url,
       isCombo: p.is_combo,
@@ -329,7 +352,7 @@ export const db = {
   async updateProduct(product: Product) {
     const isNew = product.id.startsWith('prod-');
 
-    const baseData: any = {
+    const payload: Record<string, any> = {
       id: isNew ? undefined : product.id,
       name: product.name,
       description: product.description,
@@ -341,36 +364,60 @@ export const db = {
       is_combo: product.isCombo,
       combo_items: product.comboItems,
       sort_order: product.sortOrder,
+      disabled_extra_ids: product.disabledExtraIds || [],
       badge: product.badge || null,
     };
 
-    // Try with disabled_extra_ids first
-    const dataWithExtras = { ...baseData, disabled_extra_ids: product.disabledExtraIds || [] };
+    let attempts = 0;
+    let lastError: any = null;
 
-    let { data: savedProduct, error: pError } = await supabase
-      .from('products')
-      .upsert(dataWithExtras)
-      .select()
-      .single();
-
-    // If column doesn't exist, retry without it
-    if (pError && (pError.code === '42703' || pError.message?.includes('disabled_extra_ids'))) {
-      console.warn('Coluna disabled_extra_ids não encontrada. Salvando sem ela.');
-      const retry = await supabase
+    while (attempts < 5) {
+      attempts++;
+      const { data: savedProduct, error: pError } = await supabase
         .from('products')
-        .upsert(baseData)
+        .upsert(payload)
         .select()
         .single();
-      savedProduct = retry.data;
-      pError = retry.error;
-    }
 
-    if (pError) {
+      if (!pError) {
+        return savedProduct;
+      }
+
+      lastError = pError;
+      const errorMsg = pError.message || '';
+
+      // Missing column extraction (e.g. PGRST204 or PostgreSQL 42703)
+      const missingColumnMatch = 
+        errorMsg.match(/Could not find the '([^']+)' column/) ||
+        errorMsg.match(/column "([^"]+)" of relation "products" does not exist/);
+
+      if (missingColumnMatch && missingColumnMatch[1]) {
+        const missingCol = missingColumnMatch[1];
+        console.warn(`Coluna '${missingCol}' não encontrada na tabela products do Supabase. Removendo do payload.`);
+        delete payload[missingCol];
+        continue;
+      }
+
+      if (errorMsg.includes('badge') && payload.badge !== undefined) {
+        delete payload.badge;
+        continue;
+      }
+
+      if (errorMsg.includes('disabled_extra_ids') && payload.disabled_extra_ids !== undefined) {
+        delete payload.disabled_extra_ids;
+        continue;
+      }
+
       console.error('Erro ao salvar produto:', pError);
       throw pError;
     }
 
-    return savedProduct;
+    if (lastError) {
+      console.error('Erro final ao salvar produto após tentativas:', lastError);
+      throw lastError;
+    }
+
+    return null;
   },
 
   async deleteProduct(productId: string) {

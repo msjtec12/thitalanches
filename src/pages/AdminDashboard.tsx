@@ -4,12 +4,13 @@ import { ManualOrderForm } from '@/components/ManualOrderForm';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { db } from '@/lib/db';
 import { KitchenKDS } from '@/components/KitchenKDS';
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3, Plus, ChefHat } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3, Plus, ChefHat, LogOut, Store } from 'lucide-react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuManagement } from '@/components/MenuManagement';
 import { SystemDashboard } from '@/components/SystemDashboard';
 import { InventoryReport } from '@/components/InventoryReport';
+import { PDVModule } from '@/components/PDVModule';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,9 +33,22 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('orders');
   const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // Only trust session if role is also set (double check)
-    return sessionStorage.getItem('admin_authenticated') === 'true' && userRole === 'admin';
+    return (
+      localStorage.getItem('admin_authenticated') === 'true' ||
+      sessionStorage.getItem('admin_authenticated') === 'true' ||
+      userRole === 'admin'
+    );
   });
+
+  useEffect(() => {
+    const isAuth =
+      localStorage.getItem('admin_authenticated') === 'true' ||
+      sessionStorage.getItem('admin_authenticated') === 'true' ||
+      userRole === 'admin';
+    if (isAuth) {
+      setIsAuthenticated(true);
+    }
+  }, [userRole]);
 
   const handleRoleChange = (role: 'admin' | 'employee') => {
     if (role === 'admin' && userRole !== 'admin') {
@@ -46,11 +60,19 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('admin_authenticated');
+    sessionStorage.removeItem('admin_authenticated');
+    setUserRole('employee');
+    setIsAuthenticated(false);
+  };
+
   const verifyPin = async () => {
     const isValid = await db.verifyAdminPin(pinInput);
     if (isValid) {
       setUserRole('admin');
       setIsAuthenticated(true);
+      localStorage.setItem('admin_authenticated', 'true');
       sessionStorage.setItem('admin_authenticated', 'true');
       await refetchOrders(); // Load all orders now that we are authenticated
       setIsPinModalOpen(false);
@@ -162,16 +184,42 @@ export default function AdminDashboard() {
                   <Plus className="w-3.5 h-3.5" />
                   <span>Novo</span>
                 </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-primary">
+                      {userRole === 'admin' ? <ShieldCheck className="w-4 h-4 text-primary" /> : <UserCircle className="w-4 h-4" />}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>Alternar Perfil</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleRoleChange('admin')} className="gap-2">
+                      <ShieldCheck className="w-4 h-4" /> Admin
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleRoleChange('employee')} className="gap-2">
+                      <UserCircle className="w-4 h-4" /> Funcionário
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer">
+                      <LogOut className="w-4 h-4" /> Sair / Bloquear
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
             <div className="flex items-center justify-center sm:justify-start">
               <TabsList className="bg-zinc-900 border border-white/5 p-1 h-10 gap-1 rounded-full px-2">
-                <TabsTrigger value="orders" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
+                <TabsTrigger value="pdv" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white font-black">
+                  <Store className="w-4 h-4" />
+                  <span className="hidden xs:inline">Frente de Caixa (PDV)</span>
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white font-bold">
                   <ListChecks className="w-4 h-4" />
                   <span className="hidden xs:inline">Pedidos</span>
                 </TabsTrigger>
-                <TabsTrigger value="kds" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
+                <TabsTrigger value="kds" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white font-bold">
                   <ChefHat className="w-4 h-4" />
                   <span className="hidden xs:inline">Cozinha KDS</span>
                 </TabsTrigger>
@@ -226,6 +274,10 @@ export default function AdminDashboard() {
                   <DropdownMenuItem onClick={() => handleRoleChange('employee')} className="gap-2">
                     <UserCircle className="w-4 h-4" /> Funcionário
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer">
+                    <LogOut className="w-4 h-4" /> Sair / Bloquear
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -271,6 +323,9 @@ export default function AdminDashboard() {
       </Dialog>
 
       <main className="container py-6 flex-1">
+          <TabsContent value="pdv" className="outline-none">
+            <PDVModule />
+          </TabsContent>
 
           <TabsContent value="orders" className="space-y-6 outline-none">
             <DashboardStats />

@@ -55,7 +55,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cashierLogs, setCashierLogs] = useState<CashierLog[]>([]);
-  const [userRole, setUserRole] = useState<'admin' | 'employee'>('employee');
+  const [userRole, setUserRole] = useState<'admin' | 'employee'>(() => {
+    const isAuth = 
+      localStorage.getItem('admin_authenticated') === 'true' || 
+      sessionStorage.getItem('admin_authenticated') === 'true';
+    return isAuth ? 'admin' : 'employee';
+  });
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Utilitário: timeout para qualquer Promise
@@ -99,7 +104,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
 
         // 2. Conditional data fetch based on role
-        const isAdmin = sessionStorage.getItem('admin_authenticated') === 'true';
+        const isAdmin = 
+          localStorage.getItem('admin_authenticated') === 'true' || 
+          sessionStorage.getItem('admin_authenticated') === 'true';
+
         if (isAdmin) {
           setUserRole('admin');
           const dbOrders = await db.getOrders();

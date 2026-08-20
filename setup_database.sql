@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS products (
   combo_items JSONB DEFAULT '[]'::jsonb,
   sort_order INTEGER NOT NULL DEFAULT 0,
   disabled_extra_ids JSONB DEFAULT '[]'::jsonb,
+  badge TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

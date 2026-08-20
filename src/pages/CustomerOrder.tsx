@@ -6,6 +6,7 @@ import { CategoryNav } from '@/components/CategoryNav';
 import { ProductList } from '@/components/ProductList';
 import { Cart } from '@/components/Cart';
 import { OrderTracking } from '@/components/OrderTracking';
+import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -90,6 +91,7 @@ export default function CustomerOrder() {
       <Cart />
 
       <OrderTracking />
+      <PwaInstallBanner />
 
       <footer
         className="mt-8 border-t border-white/5 shadow-inner"
