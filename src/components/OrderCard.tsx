@@ -3,11 +3,12 @@ import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle, Lock, Flame } from 'lucide-react';
+import { ArrowRight, X, Clock, Edit2, Printer, CheckCircle, MessageSquare, Truck, Store as StoreIcon, MapPin, AlertTriangle, Lock, Flame, Receipt, QrCode } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { OrderPrinter } from './OrderPrinter';
+import { PixProofModal } from './PixProofModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatPrice, formatTime as formatTimeUtil } from '@/utils/format';
 
@@ -42,6 +43,7 @@ const paymentMethodLabels: Record<string, string> = {
 export function OrderCard({ order }: OrderCardProps) {
   const { updateOrderStatus, updateScheduledTime, cancelOrder, updatePaymentStatus, markOrderAsPrinted, settings } = useOrders();
   const [isEditingTime, setIsEditingTime] = useState(false);
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
   const [newTime, setNewTime] = useState(order.scheduledTime || '');
 
   const formatWhatsAppNumber = (phone: string) => {
@@ -235,6 +237,22 @@ export function OrderCard({ order }: OrderCardProps) {
             >
               {order.paymentStatus === 'paid' ? `Pago (${paymentMethodLabels[order.paymentMethod || 'cash']})` : 'Pendente'}
             </Badge>
+
+            {/* Badge de Conferência de Comprovante Pix */}
+            {(order.paymentMethod === 'pix' || order.pixProofUrl) && (
+              <Badge 
+                onClick={() => setIsPixModalOpen(true)}
+                className={`text-[10px] font-black cursor-pointer uppercase transition-all flex items-center gap-1 shadow-sm ${
+                  order.pixProofUrl 
+                    ? 'bg-amber-500 hover:bg-amber-400 text-black border border-amber-300 animate-pulse' 
+                    : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40'
+                }`}
+                title="Clique para conferir o comprovante Pix"
+              >
+                <Receipt className="w-3 h-3" />
+                {order.pixProofUrl ? '🧾 Comprovante Pix' : 'Conferir Pix'}
+              </Badge>
+            )}
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className={`text-xs font-bold ${isLate() ? 'text-destructive animate-pulse' : 'text-muted-foreground'}`}>
@@ -496,6 +514,13 @@ export function OrderCard({ order }: OrderCardProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Conferência de Pix */}
+      <PixProofModal 
+        order={order} 
+        isOpen={isPixModalOpen} 
+        onClose={() => setIsPixModalOpen(false)} 
+      />
     </>
   );
 }

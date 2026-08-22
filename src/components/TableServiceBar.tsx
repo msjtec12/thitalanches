@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOrders } from '@/contexts/OrderContext';
 import { Button } from '@/components/ui/button';
@@ -20,12 +20,17 @@ import {
   Check, 
   Clock, 
   AlertCircle,
-  X
+  X,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 
 export function TableServiceBar() {
   const [searchParams] = useSearchParams();
-  const { orders, addOrder, settings } = useOrders();
+  const { orders, addOrder, attachPixProof, settings } = useOrders();
 
   // Read table from query params or session
   const tableParam = searchParams.get('table') || searchParams.get('mesa') || sessionStorage.getItem('thita_active_table');
@@ -37,6 +42,13 @@ export function TableServiceBar() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [billRequestedSuccess, setBillRequestedSuccess] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
+  
+  // Pix proof image upload state
+  const [pixProofImage, setPixProofImage] = useState<string | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [createdOrderNumber, setCreatedOrderNumber] = useState<number | null>(null);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (tableParam) {
@@ -64,6 +76,54 @@ export function TableServiceBar() {
     return null;
   }
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor, selecione uma foto ou print válido.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Compress image to canvas
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 700;
+        const scale = Math.min(1, MAX_WIDTH / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          setPixProofImage(compressedDataUrl);
+          toast.success('Comprovante anexado! Clique em enviar para o caixa.');
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSendProofDirectly = async () => {
+    if (!createdOrderId || !pixProofImage) return;
+    setIsUploadingProof(true);
+    try {
+      await attachPixProof(createdOrderId, pixProofImage);
+      toast.success('Comprovante Pix enviado para o caixa com sucesso!', {
+        description: 'O atendente já está conferindo o pagamento no painel.',
+      });
+    } catch (e) {
+      toast.error('Erro ao enviar comprovante.');
+    } finally {
+      setIsUploadingProof(false);
+    }
+  };
+
   const handleRequestBill = async () => {
     setIsRequesting(true);
     try {
@@ -78,7 +138,7 @@ export function TableServiceBar() {
       };
 
       // Dispara o pedido de conta para o sistema em tempo real
-      await addOrder({
+      const newOrder = await addOrder({
         origin: 'table',
         pickupType: 'immediate',
         customerName: `SOLICITAÇÃO DE CONTA - Mesa ${activeTable}`,
@@ -88,9 +148,12 @@ export function TableServiceBar() {
         status: 'received',
         paymentStatus: 'pending',
         paymentMethod: billPaymentMethod === 'card' ? 'credit_card' : billPaymentMethod === 'cash' ? 'cash' : 'pix',
-        total: tableTotal
+        total: tableTotal,
+        pixProofUrl: pixProofImage || undefined
       });
 
+      setCreatedOrderId(newOrder.id);
+      setCreatedOrderNumber(newOrder.number);
       setBillRequestedSuccess(true);
       toast.success(`Conta da Mesa ${activeTable} solicitada!`, {
         description: 'O garçom já foi notificado e está a caminho da sua mesa.',
@@ -111,6 +174,25 @@ export function TableServiceBar() {
     toast.success('Chave Pix copiada com sucesso!');
     setTimeout(() => setCopiedPix(false), 3000);
   };
+
+  const handleSendWhatsAppProof = () => {
+    const phone = settings.whatsappNumber || '16999999999';
+    const digits = phone.replace(/\D/g, '');
+    const fullPhone = digits.length === 11 || digits.length === 10 ? `55${digits}` : digits;
+
+    const message = encodeURIComponent(
+      `🧾 *COMPROVANTE DE PAGAMENTO PIX — MESA ${activeTable}*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Olá! Segue o comprovante do fechamento da nossa comanda na *Mesa ${activeTable}*.\n\n` +
+      `💰 *Valor Pago:* ${formatPrice(tableTotal)}\n` +
+      (createdOrderNumber ? `🔢 *Pedido / Chamado:* #${createdOrderNumber}\n\n` : '\n') +
+      `_Estou enviando a foto/print do comprovante em anexo nesta conversa..._`
+    );
+
+    window.open(`https://wa.me/${fullPhone}?text=${message}`, '_blank');
+  };
+
+  const pixQrCodeImg = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(settings.whatsappNumber || 'thita.lanches@pix.com.br')}&color=0-0-0&bgcolor=255-255-255`;
 
   return (
     <>
@@ -150,7 +232,7 @@ export function TableServiceBar() {
 
       {/* ── MODAL: PEDIR A CONTA NA MESA ── */}
       <Dialog open={isBillModalOpen} onOpenChange={setIsBillModalOpen}>
-        <DialogContent className="max-w-md bg-zinc-950 border border-amber-500/30 text-white p-5 rounded-3xl shadow-2xl">
+        <DialogContent className="max-w-md bg-zinc-950 border border-amber-500/30 text-white p-5 rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between text-base font-black italic uppercase">
               <span className="flex items-center gap-2">
@@ -164,9 +246,9 @@ export function TableServiceBar() {
           </DialogHeader>
 
           {billRequestedSuccess ? (
-            <div className="py-6 text-center space-y-4">
-              <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto animate-bounce">
-                <CheckCircle2 className="w-9 h-9" />
+            <div className="py-4 text-center space-y-4">
+              <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto animate-bounce">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
               <div>
                 <h3 className="text-lg font-black italic uppercase text-white">
@@ -178,9 +260,20 @@ export function TableServiceBar() {
               </div>
 
               {billPaymentMethod === 'pix' && (
-                <div className="p-4 bg-zinc-900 border border-white/10 rounded-2xl space-y-2 text-center">
-                  <p className="text-xs font-bold text-amber-400 uppercase">Pagamento via Pix na Mesa</p>
-                  <p className="text-[11px] text-zinc-400">Copie a chave Pix abaixo para agilizar:</p>
+                <div className="p-4 bg-zinc-900 border border-amber-500/30 rounded-2xl space-y-3 text-left">
+                  <div className="text-center space-y-1">
+                    <p className="text-xs font-black text-amber-400 uppercase">Pagamento via Pix na Mesa</p>
+                    <p className="text-2xl font-black text-emerald-400">{formatPrice(tableTotal)}</p>
+                  </div>
+
+                  {/* QR Code Pix */}
+                  <div className="flex justify-center py-1">
+                    <div className="bg-white p-2.5 rounded-2xl shadow-md border border-zinc-200">
+                      <img src={pixQrCodeImg} alt="Pix QR Code" className="w-32 h-32" />
+                    </div>
+                  </div>
+
+                  {/* Chave Pix */}
                   <div className="flex items-center justify-between gap-2 bg-zinc-950 p-2.5 rounded-xl border border-white/10">
                     <span className="text-xs font-mono text-white truncate">
                       {settings.whatsappNumber || 'thita.lanches@pix.com.br'}
@@ -188,6 +281,70 @@ export function TableServiceBar() {
                     <Button size="sm" onClick={handleCopyPix} className="h-7 text-xs gap-1 bg-primary">
                       {copiedPix ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                       {copiedPix ? 'Copiado' : 'Copiar'}
+                    </Button>
+                  </div>
+
+                  {/* Upload do Comprovante */}
+                  <div className="pt-2 border-t border-white/10 space-y-2">
+                    <Label className="text-xs font-bold text-zinc-300 uppercase flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-amber-400" />
+                      Enviar Comprovante do Banco:
+                    </Label>
+
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      ref={fileInputRef} 
+                      onChange={handleImageFileChange} 
+                      className="hidden" 
+                    />
+
+                    {pixProofImage ? (
+                      <div className="space-y-2">
+                        <div className="relative bg-black/50 p-2 rounded-xl border border-white/10 flex items-center gap-3">
+                          <img src={pixProofImage} alt="Preview" className="w-12 h-12 object-cover rounded-lg" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-emerald-400">Comprovante carregado!</p>
+                            <p className="text-[10px] text-zinc-400">Clique abaixo para enviar ao caixa.</p>
+                          </div>
+                          <button onClick={() => setPixProofImage(null)} className="text-zinc-500 hover:text-red-400 p-1">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {createdOrderId && (
+                          <Button
+                            size="sm"
+                            onClick={handleSendProofDirectly}
+                            disabled={isUploadingProof}
+                            className="w-full h-9 bg-emerald-500 hover:bg-emerald-600 text-black font-black text-xs uppercase tracking-wider rounded-xl gap-1.5 shadow-md"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            {isUploadingProof ? 'Enviando...' : 'Confirmar Envio do Comprovante ao Caixa'}
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full h-10 border-dashed border-amber-500/40 bg-zinc-950/60 hover:bg-amber-500/10 text-amber-400 font-bold text-xs rounded-xl gap-2"
+                      >
+                        <Camera className="w-4 h-4" />
+                        Tirar Foto ou Anexar Print do Comprovante
+                      </Button>
+                    )}
+
+                    {/* Botão de WhatsApp */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendWhatsAppProof}
+                      className="w-full h-9 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500 hover:text-black text-emerald-400 font-bold text-xs rounded-xl gap-2"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Enviar Comprovante pelo WhatsApp
                     </Button>
                   </div>
                 </div>

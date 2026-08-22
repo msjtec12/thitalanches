@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { useOrders } from '@/contexts/OrderContext';
 import { Link } from 'react-router-dom';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Download, Smartphone } from 'lucide-react';
 import { checkStoreOpenStatus } from '@/utils/openingHours';
+import { AppInstallDialog } from './AppInstallDialog';
+import { Button } from '@/components/ui/button';
 
 export function StoreHeader() {
   const { settings } = useOrders();
+  const [isInstallOpen, setIsInstallOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 shadow-2xl border-b border-white/5"
@@ -88,7 +92,19 @@ export function StoreHeader() {
           {(() => {
             const openStatus = checkStoreOpenStatus(settings);
             return (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Botão Baixar App */}
+                <Button
+                  size="sm"
+                  onClick={() => setIsInstallOpen(true)}
+                  className="h-8 md:h-9 px-2.5 md:px-3.5 rounded-full bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-black font-black text-[10px] md:text-xs uppercase tracking-wider border border-amber-500/40 shadow-sm transition-all gap-1.5 flex items-center"
+                  title="Instalar Aplicativo no Celular"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Baixar App</span>
+                  <span className="bg-amber-400 text-black text-[8px] font-black px-1 py-0.2 rounded-full uppercase">Grátis</span>
+                </Button>
+
                 <div 
                   className={`flex flex-col sm:flex-row items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shadow-inner ${
                     openStatus.isOpen
@@ -122,6 +138,9 @@ export function StoreHeader() {
           })()}
         </div>
       </div>
+
+      {/* Modal de Instalação do App */}
+      <AppInstallDialog isOpen={isInstallOpen} onClose={() => setIsInstallOpen(false)} />
     </header>
   );
 }

@@ -26,12 +26,15 @@ import {
   Check,
   Search,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Receipt
 } from 'lucide-react';
+import { PixProofModal } from './PixProofModal';
 
 export function DeliveryDispatch() {
   const { orders, updateOrderStatus, updatePaymentStatus, settings } = useOrders();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPixOrder, setSelectedPixOrder] = useState<Order | null>(null);
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'kitchen' | 'ready' | 'in_route' | 'delivered'>('all');
   const [motoboyAssignments, setMotoboyAssignments] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('thita_motoboy_assignments');
@@ -307,6 +310,22 @@ export function DeliveryDispatch() {
                     <Badge className={`text-[9px] ${order.paymentStatus === 'paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                       {order.paymentStatus === 'paid' ? 'Pago' : 'Cobrar na Entrega'}
                     </Badge>
+
+                    {/* Badge Comprovante Pix */}
+                    {(order.paymentMethod === 'pix' || order.pixProofUrl) && (
+                      <Badge 
+                        onClick={() => setSelectedPixOrder(order)}
+                        className={`text-[9px] font-black cursor-pointer uppercase transition-all flex items-center gap-1 shadow-sm ${
+                          order.pixProofUrl 
+                            ? 'bg-amber-500 hover:bg-amber-400 text-black border border-amber-300 animate-pulse' 
+                            : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40'
+                        }`}
+                        title="Conferir Comprovante Pix"
+                      >
+                        <Receipt className="w-3 h-3" />
+                        {order.pixProofUrl ? '🧾 Comprovante' : 'Conferir Pix'}
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Se houver troco */}
@@ -381,6 +400,13 @@ export function DeliveryDispatch() {
           })}
         </div>
       )}
+
+      {/* Modal de Conferência de Pix */}
+      <PixProofModal 
+        order={selectedPixOrder} 
+        isOpen={!!selectedPixOrder} 
+        onClose={() => setSelectedPixOrder(null)} 
+      />
     </div>
   );
 }

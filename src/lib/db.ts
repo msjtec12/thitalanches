@@ -450,31 +450,52 @@ export const db = {
       paymentStatus: o.payment_status,
       total: o.total,
       createdAt: new Date(o.created_at),
-      isPrinted: o.is_printed
+      isPrinted: o.is_printed,
+      pixProofUrl: o.pix_proof_url || (o.general_observation?.includes('[COMPROVANTE_PIX:') ? o.general_observation.split('[COMPROVANTE_PIX:')[1]?.split(']')[0] : undefined)
     }));
   },
 
   async createOrder(order: Omit<Order, 'id' | 'number' | 'createdAt'>) {
-    const { data, error } = await supabase
+    const payload: any = {
+      origin: order.origin,
+      pickup_type: order.pickupType,
+      scheduled_time: order.scheduledTime,
+      customer_name: order.customerName,
+      customer_phone: order.customerPhone,
+      table_number: order.tableNumber,
+      delivery_info: order.deliveryInfo,
+      items: order.items,
+      general_observation: order.pixProofUrl 
+        ? `${order.generalObservation || ''}\n[COMPROVANTE_PIX:${order.pixProofUrl}]`
+        : order.generalObservation,
+      internal_observation: order.internalObservation,
+      status: order.status,
+      payment_method: order.paymentMethod,
+      payment_status: order.paymentStatus,
+      total: order.total
+    };
+
+    if (order.pixProofUrl) {
+      payload.pix_proof_url = order.pixProofUrl;
+    }
+
+    let { data, error } = await supabase
       .from('orders')
-      .insert([{
-        origin: order.origin,
-        pickup_type: order.pickupType,
-        scheduled_time: order.scheduledTime,
-        customer_name: order.customerName,
-        customer_phone: order.customerPhone,
-        table_number: order.tableNumber,
-        delivery_info: order.deliveryInfo,
-        items: order.items,
-        general_observation: order.generalObservation,
-        internal_observation: order.internalObservation,
-        status: order.status,
-        payment_method: order.paymentMethod,
-        payment_status: order.paymentStatus,
-        total: order.total
-      }])
+      .insert([payload])
       .select()
       .single();
+    
+    // If column pix_proof_url doesn't exist in Supabase schema, retry without it
+    if (error && (error.code === 'PGRST204' || error.message?.includes('pix_proof_url'))) {
+      delete payload.pix_proof_url;
+      const retry = await supabase
+        .from('orders')
+        .insert([payload])
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
     
     if (error) throw error;
     return {
@@ -495,7 +516,8 @@ export const db = {
       paymentStatus: data.payment_status,
       total: data.total,
       createdAt: new Date(data.created_at),
-      isPrinted: data.is_printed
+      isPrinted: data.is_printed,
+      pixProofUrl: order.pixProofUrl || data.pix_proof_url
     };
   },
 
@@ -507,6 +529,18 @@ export const db = {
     const updateData: any = { payment_status: status };
     if (method) updateData.payment_method = method;
     await supabase.from('orders').update(updateData).eq('id', orderId);
+  },
+
+  async attachPixProof(orderId: string, proofUrl: string) {
+    // Try updating pix_proof_url column directly
+    const { error } = await supabase.from('orders').update({ pix_proof_url: proofUrl }).eq('id', orderId);
+    if (error) {
+      // Fallback: append to general_observation
+      const { data } = await supabase.from('orders').select('general_observation').eq('id', orderId).single();
+      const currentObs = data?.general_observation || '';
+      const updatedObs = `${currentObs}\n[COMPROVANTE_PIX:${proofUrl}]`;
+      await supabase.from('orders').update({ general_observation: updatedObs }).eq('id', orderId);
+    }
   },
 
   async markOrderAsPrinted(orderId: string) {

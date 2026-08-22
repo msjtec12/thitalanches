@@ -107,6 +107,7 @@ export interface Order {
   total: number;
   createdAt: Date;
   isPrinted?: boolean;
+  pixProofUrl?: string;
 }
 
 export interface StoreSettings {

@@ -12,6 +12,7 @@ interface OrderContextType {
   addOrder: (order: Omit<Order, 'id' | 'number' | 'createdAt'>) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updatePaymentStatus: (orderId: string, status: Order['paymentStatus'], method?: Order['paymentMethod']) => void;
+  attachPixProof: (orderId: string, proofUrl: string) => Promise<void>;
   updateScheduledTime: (orderId: string, time: string) => void;
   cancelOrder: (orderId: string) => void;
   updateProduct: (product: Product) => Promise<void>;
@@ -235,6 +236,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await db.updatePaymentStatus(orderId, status, method);
   };
 
+  const attachPixProof = async (orderId: string, proofUrl: string) => {
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === orderId ? { ...order, pixProofUrl: proofUrl } : order
+      )
+    );
+    await db.attachPixProof(orderId, proofUrl);
+  };
+
   const updateScheduledTime = (orderId: string, time: string) => {
     setOrders(prev =>
       prev.map(order =>
@@ -370,6 +380,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       addOrder, 
       updateOrderStatus, 
       updatePaymentStatus,
+      attachPixProof,
       updateScheduledTime, 
       cancelOrder,
       updateProduct,
