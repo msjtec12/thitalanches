@@ -198,22 +198,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProduct = async (updatedProduct: Product) => {
-    const saved = await db.updateProduct(updatedProduct);
-    const normalized: Product = saved ? {
-      ...updatedProduct,
-      id: saved.id,
-      name: saved.name,
-      description: saved.description,
-      price: Number(saved.price),
-      costPrice: Number(saved.cost_price) || updatedProduct.costPrice,
-      categoryId: saved.category_id,
-      isActive: saved.is_active,
-      image: saved.image_url,
-      isCombo: saved.is_combo,
-      comboItems: saved.combo_items || [],
-      sortOrder: saved.sort_order || 0,
-      disabledExtraIds: saved.disabled_extra_ids || [],
-    } : updatedProduct;
+    const normalized = await secureDb.upsertProduct(updatedProduct);
     setProducts((prev) => {
       const exists = prev.some((p) => p.id === updatedProduct.id);
       return exists ? prev.map((p) => (p.id === updatedProduct.id ? normalized : p)) : [...prev, normalized];
