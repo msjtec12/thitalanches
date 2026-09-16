@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, fix/production-hardening-v3]
+    branches: [main, perf/tests-production-v31]
 
 permissions:
   contents: read
@@ -12,7 +12,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,14 +30,21 @@ jobs:
         continue-on-error: true
         run: npm run lint
 
-      - name: Test
-        run: npm test
+      - name: Test critical rules
+        run: npm run test:ci
 
-      - name: Build
+      - name: Build production bundle
         run: npm run build
         env:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_ANON_KEY: ci-placeholder-key
 
-      - name: Production dependency audit
+      - name: Enforce frontend performance budget
+        run: npm run check:bundle
+
+      - name: Production dependency audit (high report)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Block critical production vulnerabilities
         run: npm audit --omit=dev --audit-level=critical

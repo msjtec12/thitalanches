@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Product, Category } from '@/types/order';
 import { ProductCard } from './ProductCard';
 import { ShoppingBag, Loader2 } from 'lucide-react';
+import { filterAndSortProducts } from '@/utils/products';
 
 interface ProductListProps {
   products: Product[];
@@ -10,17 +12,13 @@ interface ProductListProps {
   isLoading?: boolean;
 }
 
-export function ProductList({ products, categories, activeCategory, searchQuery = '', isLoading }: ProductListProps) {
+export function ProductList({ products, activeCategory, searchQuery = '', isLoading }: ProductListProps) {
   const query = searchQuery.trim().toLowerCase();
-  
-  // Se houver busca ativa, filtra produtos por nome ou descrição em todo o cardápio
-  const filteredProducts = query 
-    ? products.filter(p => p.name.toLowerCase().includes(query) || p.description?.toLowerCase().includes(query))
-    : activeCategory 
-      ? products.filter(p => p.categoryId === activeCategory)
-      : [];
+  const filteredProducts = useMemo(
+    () => filterAndSortProducts(products, activeCategory, searchQuery),
+    [products, activeCategory, searchQuery],
+  );
 
-  // Estado de carregamento
   if (isLoading) {
     return (
       <section className="py-8 flex flex-col items-center justify-center gap-3 min-h-[200px]">
@@ -30,7 +28,6 @@ export function ProductList({ products, categories, activeCategory, searchQuery 
     );
   }
 
-  // Busca ativa mas sem resultados
   if (query && filteredProducts.length === 0) {
     return (
       <section className="py-10 flex flex-col items-center justify-center gap-3 min-h-[200px]">
@@ -41,7 +38,6 @@ export function ProductList({ products, categories, activeCategory, searchQuery 
     );
   }
 
-  // Nenhuma categoria selecionada e sem busca
   if (!activeCategory && !query) {
     return (
       <section className="py-10 flex flex-col items-center justify-center gap-3 min-h-[180px]">
@@ -51,7 +47,6 @@ export function ProductList({ products, categories, activeCategory, searchQuery 
     );
   }
 
-  // Categoria selecionada mas sem produtos
   if (filteredProducts.length === 0) {
     return (
       <section className="py-8 flex flex-col items-center justify-center gap-3 min-h-[200px]">
@@ -64,12 +59,7 @@ export function ProductList({ products, categories, activeCategory, searchQuery 
   return (
     <section className="py-4">
       <div className="grid gap-3">
-        {[...filteredProducts].sort((a,b) => {
-          const orderA = Number(a.sortOrder) || 0;
-          const orderB = Number(b.sortOrder) || 0;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.name.localeCompare(b.name);
-        }).map((product) => (
+        {filteredProducts.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>
