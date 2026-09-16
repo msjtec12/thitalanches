@@ -80,7 +80,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const loadOrdersForCurrentSession = async () => {
     const staff = await getStaffSession();
-    const data = staff ? await db.getOrders() : await secureDb.getOwnOrders();
+    const data = staff ? await secureDb.getStaffOrders() : await secureDb.getOwnOrders();
     setOrders(data);
   };
 
@@ -106,7 +106,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (dbSettings) setSettings({ ...defaultSettings, ...dbSettings });
 
         if (role) {
-          const dbOrders = await db.getOrders();
+          const dbOrders = await secureDb.getStaffOrders();
           if (active) setOrders(dbOrders);
         } else {
           const ownOrders = await secureDb.getOwnOrders();
