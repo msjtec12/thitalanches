@@ -1,26 +1,29 @@
--- ============================================================
--- SCRIPT DE INICIALIZAÇÃO COMPLETO PARA O SUPABASE - THITA LANCHES
--- Execute este script no SQL Editor do seu novo painel Supabase
--- (SQL Editor -> New Query -> Paste -> Run)
--- ============================================================
+-- =============================================================================
+-- THITA LANCHES — BASE DATABASE SETUP (SECURE BY DEFAULT)
+-- Run this only for a NEW Supabase project.
+-- Then run, in this order:
+--   1) production_security_v3.sql
+--   2) validate_order_prices_trigger.sql
+-- No public write policy or administrator PIN is created by this bootstrap.
+-- =============================================================================
 
--- 1. TABELA DE CONFIGURAÇÕES DA LOJA (store_settings)
-CREATE TABLE IF NOT EXISTS store_settings (
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS public.store_settings (
   id BIGINT PRIMARY KEY DEFAULT 1,
   name TEXT NOT NULL DEFAULT 'Thita Lanches',
-  is_open BOOLEAN NOT NULL DEFAULT true,
-  is_cashier_open BOOLEAN NOT NULL DEFAULT false,
-  prep_time INTEGER NOT NULL DEFAULT 30,
-  delivery_radius NUMERIC(10,2) NOT NULL DEFAULT 10,
+  is_open BOOLEAN NOT NULL DEFAULT TRUE,
+  is_cashier_open BOOLEAN NOT NULL DEFAULT FALSE,
+  prep_time INTEGER NOT NULL DEFAULT 30 CHECK (prep_time BETWEEN 1 AND 240),
+  delivery_radius NUMERIC(10,2) NOT NULL DEFAULT 12 CHECK (delivery_radius BETWEEN 0 AND 50),
   whatsapp_number TEXT DEFAULT '',
-  scheduling_interval INTEGER NOT NULL DEFAULT 15,
-  is_street_validation_enabled BOOLEAN NOT NULL DEFAULT false,
-  opening_hours JSONB DEFAULT '[]'::jsonb,
-  admin_pin TEXT NOT NULL DEFAULT '1234',
+  scheduling_interval INTEGER NOT NULL DEFAULT 15 CHECK (scheduling_interval BETWEEN 5 AND 240),
+  is_street_validation_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  opening_hours JSONB NOT NULL DEFAULT '[]'::JSONB,
   logo_url TEXT,
   primary_color TEXT,
   primary_color_hover TEXT,
-  is_sound_enabled BOOLEAN DEFAULT true,
+  is_sound_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   store_cep TEXT DEFAULT '14026596',
   store_street TEXT DEFAULT 'R. Magda Perona Frossard',
   store_number TEXT DEFAULT '565',
@@ -28,105 +31,79 @@ CREATE TABLE IF NOT EXISTS store_settings (
   store_state TEXT DEFAULT 'SP',
   store_lat FLOAT8 DEFAULT -21.2185116,
   store_lng FLOAT8 DEFAULT -47.8224098,
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Insere a configuração padrão se a tabela estiver vazia
-INSERT INTO store_settings (id, name, admin_pin)
-VALUES (1, 'Thita Lanches', '1234')
+INSERT INTO public.store_settings (id, name)
+VALUES (1, 'Thita Lanches')
 ON CONFLICT (id) DO NOTHING;
 
--- Função RPC para verificar o PIN de administrador com segurança
-CREATE OR REPLACE FUNCTION verify_admin_pin(input_pin text)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM store_settings WHERE id = 1 AND admin_pin = input_pin
-  );
-END;
-$$;
-
-
--- 2. TABELA DE BAIRROS (neighborhoods)
-CREATE TABLE IF NOT EXISTS neighborhoods (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS public.neighborhoods (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  delivery_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
-  estimated_distance_km NUMERIC(10,2) NOT NULL DEFAULT 0,
-  allowed_streets JSONB DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT now()
+  delivery_fee NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (delivery_fee >= 0),
+  estimated_distance_km NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (estimated_distance_km >= 0),
+  allowed_streets JSONB NOT NULL DEFAULT '[]'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-
--- 3. TABELA DE CATEGORIAS (categories)
-CREATE TABLE IF NOT EXISTS categories (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS public.categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
   photo_url TEXT,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now()
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-
--- 4. TABELA DE GRUPOS DE ADICIONAIS/COMPLEMENTOS (category_extra_groups)
-CREATE TABLE IF NOT EXISTS category_extra_groups (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS public.category_extra_groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE CASCADE,
   name TEXT NOT NULL DEFAULT '',
-  min_qty INTEGER NOT NULL DEFAULT 0,
-  max_qty INTEGER NOT NULL DEFAULT 0,
-  is_required BOOLEAN NOT NULL DEFAULT false,
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  min_qty INTEGER NOT NULL DEFAULT 0 CHECK (min_qty >= 0),
+  max_qty INTEGER NOT NULL DEFAULT 0 CHECK (max_qty >= 0),
+  is_required BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (max_qty = 0 OR max_qty >= min_qty)
 );
+CREATE INDEX IF NOT EXISTS idx_extra_groups_category_id ON public.category_extra_groups(category_id);
 
-CREATE INDEX IF NOT EXISTS idx_extra_groups_category_id ON category_extra_groups(category_id);
-
-
--- 5. TABELA DE ITENS DE ADICIONAIS (category_extra_items)
-CREATE TABLE IF NOT EXISTS category_extra_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  group_id UUID NOT NULL REFERENCES category_extra_groups(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS public.category_extra_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES public.category_extra_groups(id) ON DELETE CASCADE,
   name TEXT NOT NULL DEFAULT '',
-  price NUMERIC(10,2) NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  price NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (price >= 0),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_extra_items_group_id ON public.category_extra_items(group_id);
 
-CREATE INDEX IF NOT EXISTS idx_extra_items_group_id ON category_extra_items(group_id);
-
-
--- 6. TABELA DE PRODUTOS (products)
-CREATE TABLE IF NOT EXISTS products (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
   description TEXT,
-  price NUMERIC(10,2) NOT NULL DEFAULT 0,
-  cost_price NUMERIC(10,2),
-  is_active BOOLEAN NOT NULL DEFAULT true,
+  price NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (price >= 0),
+  cost_price NUMERIC(10,2) CHECK (cost_price IS NULL OR cost_price >= 0),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
   image_url TEXT,
-  is_combo BOOLEAN NOT NULL DEFAULT false,
-  combo_items JSONB DEFAULT '[]'::jsonb,
+  is_combo BOOLEAN NOT NULL DEFAULT FALSE,
+  combo_items JSONB NOT NULL DEFAULT '[]'::JSONB,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  disabled_extra_ids JSONB DEFAULT '[]'::jsonb,
-  badge TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  disabled_extra_ids JSONB NOT NULL DEFAULT '[]'::JSONB,
+  badge TEXT CHECK (badge IS NULL OR badge IN ('bestseller', 'promo', 'new', 'highlight')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_id);
 
-CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
-
-
--- 7. TABELA DE PEDIDOS (orders)
-CREATE TABLE IF NOT EXISTS orders (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS public.orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   number BIGINT GENERATED BY DEFAULT AS IDENTITY,
+  customer_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  order_type TEXT NOT NULL DEFAULT 'sale' CHECK (order_type IN ('sale', 'bill_request')),
   origin TEXT NOT NULL DEFAULT 'counter',
   pickup_type TEXT NOT NULL DEFAULT 'immediate',
   scheduled_time TEXT,
@@ -134,82 +111,62 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_phone TEXT,
   table_number TEXT,
   delivery_info JSONB,
-  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  items JSONB NOT NULL DEFAULT '[]'::JSONB,
   general_observation TEXT,
   internal_observation TEXT,
-  status TEXT NOT NULL DEFAULT 'received',
+  status TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('received', 'preparing', 'ready', 'completed', 'cancelled')),
   payment_method TEXT,
-  payment_status TEXT NOT NULL DEFAULT 'pending',
-  total NUMERIC(10,2) NOT NULL DEFAULT 0,
-  is_printed BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
+  payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid')),
+  total NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (total >= 0),
+  is_printed BOOLEAN NOT NULL DEFAULT FALSE,
+  pix_proof_path TEXT,
+  pix_proof_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_orders_customer_user_id ON public.orders(customer_user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
 
+-- RLS is enabled immediately. No permissive policy is created here.
+ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.neighborhoods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.category_extra_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.category_extra_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- 8. ROW LEVEL SECURITY (RLS) & POLÍTICAS
-ALTER TABLE store_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE neighborhoods ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE category_extra_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE category_extra_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-
--- Remove políticas anteriores se existirem
-DROP POLICY IF EXISTS "store_settings_all" ON store_settings;
-DROP POLICY IF EXISTS "neighborhoods_all" ON neighborhoods;
-DROP POLICY IF EXISTS "categories_all" ON categories;
-DROP POLICY IF EXISTS "category_extra_groups_all" ON category_extra_groups;
-DROP POLICY IF EXISTS "category_extra_items_all" ON category_extra_items;
-DROP POLICY IF EXISTS "products_all" ON products;
-DROP POLICY IF EXISTS "orders_all" ON orders;
-
--- Cria políticas permissivas públicas (acesso via anon)
-CREATE POLICY "store_settings_all" ON store_settings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "neighborhoods_all" ON neighborhoods FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "categories_all" ON categories FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "category_extra_groups_all" ON category_extra_groups FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "category_extra_items_all" ON category_extra_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "products_all" ON products FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "orders_all" ON orders FOR ALL USING (true) WITH CHECK (true);
-
-
--- 9. CONFIGURAÇÃO DE BUCKETS DE STORAGE (Category / Product Images)
+-- Public catalog image buckets. Read/write policies are defined by
+-- production_security_v3.sql. Creating a public bucket does not grant uploads.
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('category-images', 'category-images', true)
+VALUES
+  ('category-images', 'category-images', TRUE),
+  ('product-images', 'product-images', TRUE),
+  ('pix-proofs', 'pix-proofs', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('product-images', 'product-images', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Políticas de Storage
-DROP POLICY IF EXISTS "Public Read Category Images" ON storage.objects;
-DROP POLICY IF EXISTS "Public Upload Category Images" ON storage.objects;
-
-CREATE POLICY "Public Read Category Images" ON storage.objects
-  FOR SELECT USING (bucket_id IN ('category-images', 'product-images'));
-
-CREATE POLICY "Public Upload Category Images" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id IN ('category-images', 'product-images'));
-
-
--- 10. INSERÇÃO DAS 16 CATEGORIAS INICIAIS
-INSERT INTO categories (name, sort_order) VALUES
-  ('Combos',                    1),
-  ('Hot Dog (Prensados)',        2),
-  ('Lanches de Hambúrguer',     3),
-  ('Lanches de Frango',         4),
-  ('Lanches de Churrasco',      5),
-  ('Lanches de Calabresa',      6),
-  ('Lanches Universitários',    7),
-  ('Especiais do Thita',        8),
-  ('Thita Chicken',             9),
-  ('Batata Frita',             10),
-  ('Molhos Especiais',         11),
-  ('Bebidas',                  12),
-  ('Açaí',                     13),
-  ('Sorvetes',                 14),
-  ('Milk Shake',               15),
-  ('Sobremesas',               16)
+INSERT INTO public.categories (name, sort_order) VALUES
+  ('Combos', 1),
+  ('Hot Dog (Prensados)', 2),
+  ('Lanches de Hambúrguer', 3),
+  ('Lanches de Frango', 4),
+  ('Lanches de Churrasco', 5),
+  ('Lanches de Calabresa', 6),
+  ('Lanches Universitários', 7),
+  ('Especiais do Thita', 8),
+  ('Thita Chicken', 9),
+  ('Batata Frita', 10),
+  ('Molhos Especiais', 11),
+  ('Bebidas', 12),
+  ('Açaí', 13),
+  ('Sorvetes', 14),
+  ('Milk Shake', 15),
+  ('Sobremesas', 16)
 ON CONFLICT DO NOTHING;
+
+COMMIT;
+
+-- REQUIRED NEXT STEPS:
+--   Run production_security_v3.sql
+--   Run validate_order_prices_trigger.sql
+--   Enable Supabase Auth Anonymous Sign-Ins
+--   Create a staff Auth user and add its UUID to public.staff_users
