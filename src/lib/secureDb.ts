@@ -62,6 +62,30 @@ export const secureDb = {
     return (data || []).map(mapProduct);
   },
 
+  async upsertProduct(product: Product): Promise<Product> {
+    const staff = await getStaffSession();
+    if (staff?.role !== 'admin') throw new Error('Apenas administradores podem alterar produtos.');
+
+    const isNew = product.id.startsWith('prod-');
+    const { data, error } = await supabase.rpc('staff_upsert_product', {
+      p_id: isNew ? null : product.id,
+      p_name: product.name,
+      p_description: product.description || null,
+      p_price: product.price,
+      p_cost_price: product.costPrice ?? null,
+      p_category_id: product.categoryId,
+      p_is_active: product.isActive,
+      p_image_url: product.image || null,
+      p_is_combo: product.isCombo ?? false,
+      p_combo_items: product.comboItems || [],
+      p_sort_order: product.sortOrder || 0,
+      p_disabled_extra_ids: product.disabledExtraIds || [],
+      p_badge: product.badge || null,
+    });
+    if (error) throw error;
+    return mapProduct(data);
+  },
+
   async createOrder(order: Omit<Order, 'id' | 'number' | 'createdAt'>): Promise<Order> {
     const session = await ensureCustomerSession();
     const userId = session.user.id;
