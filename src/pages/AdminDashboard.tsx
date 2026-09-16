@@ -1,359 +1,166 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BarChart3, ChefHat, ListChecks, Lock, LogOut, Plus, Settings, ShieldCheck, Store, UtensilsCrossed } from 'lucide-react';
 import { useOrders } from '@/contexts/OrderContext';
+import { getStaffSession, signInStaff, signOutStaff } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ManualOrderForm } from '@/components/ManualOrderForm';
 import { KanbanBoard } from '@/components/KanbanBoard';
-import { db } from '@/lib/db';
 import { KitchenKDS } from '@/components/KitchenKDS';
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Settings, ListChecks, UserCircle, ShieldCheck, Lock, BarChart3, Plus, ChefHat, LogOut, Store } from 'lucide-react';
 import { DashboardStats } from '@/components/DashboardStats';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MenuManagement } from '@/components/MenuManagement';
 import { SystemDashboard } from '@/components/SystemDashboard';
 import { InventoryReport } from '@/components/InventoryReport';
 import { PDVModule } from '@/components/PDVModule';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function AdminDashboard() {
-  const { settings, userRole, setUserRole, refetchOrders } = useOrders();
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
+  const { userRole, setUserRole, refetchOrders, refreshSessionRole } = useOrders();
   const [activeTab, setActiveTab] = useState('orders');
   const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return (
-      localStorage.getItem('admin_authenticated') === 'true' ||
-      sessionStorage.getItem('admin_authenticated') === 'true' ||
-      userRole === 'admin'
-    );
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    const isAuth =
-      localStorage.getItem('admin_authenticated') === 'true' ||
-      sessionStorage.getItem('admin_authenticated') === 'true' ||
-      userRole === 'admin';
-    if (isAuth) {
-      setIsAuthenticated(true);
-    }
-  }, [userRole]);
+    let mounted = true;
+    void getStaffSession().then(async (staff) => {
+      if (!mounted) return;
+      if (staff) {
+        setUserRole(staff.role);
+        setIsAuthenticated(true);
+        await refetchOrders();
+      }
+      setIsCheckingSession(false);
+    });
+    return () => { mounted = false; };
+  }, []);
 
-  const handleRoleChange = (role: 'admin' | 'employee') => {
-    if (role === 'admin' && userRole !== 'admin') {
-      setIsPinModalOpen(true);
-      setPinInput('');
-      setPinError(false);
-    } else {
-      setUserRole(role);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_authenticated');
-    sessionStorage.removeItem('admin_authenticated');
-    setUserRole('employee');
-    setIsAuthenticated(false);
-  };
-
-  const verifyPin = async () => {
-    const isValid = await db.verifyAdminPin(pinInput);
-    if (isValid) {
-      setUserRole('admin');
-      setIsAuthenticated(true);
-      localStorage.setItem('admin_authenticated', 'true');
-      sessionStorage.setItem('admin_authenticated', 'true');
-      await refetchOrders(); // Load all orders now that we are authenticated
-      setIsPinModalOpen(false);
-      setPinError(false);
-    } else {
-      setPinError(true);
-    }
-  };
-
-  // Keyboard shortcut handler for opening new order
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === '+' || e.key === '=') && !isManualOrderOpen) {
-        e.preventDefault();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.key === '+' || event.key === '=') && !isManualOrderOpen && isAuthenticated) {
+        event.preventDefault();
         setIsManualOrderOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isManualOrderOpen]);
+  }, [isManualOrderOpen, isAuthenticated]);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      setLoginError('Informe e-mail e senha.');
+      return;
+    }
+    setIsSigningIn(true);
+    setLoginError('');
+    try {
+      const staff = await signInStaff(email.trim(), password);
+      setUserRole(staff.role);
+      setIsAuthenticated(true);
+      await refetchOrders();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível entrar.';
+      setLoginError(message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOutStaff();
+    await refreshSessionRole();
+    setIsAuthenticated(false);
+    setPassword('');
+  };
+
+  if (isCheckingSession) {
+    return <div className="min-h-screen bg-zinc-950 grid place-items-center text-zinc-400">Verificando acesso seguro...</div>;
+  }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        {/* Adiciona um fundo decorativo sutil */}
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50 pointer-events-none"></div>
-        
-        <div className="w-full max-w-[400px] space-y-8 relative z-10">
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="bg-primary/20 p-4 rounded-full border border-primary/30 shadow-[0_0_20px_rgba(239,68,68,0.2)] animate-pulse">
-                <Lock className="w-8 h-8 text-primary" />
-              </div>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900/70 p-8 shadow-2xl space-y-6">
+          <div className="text-center space-y-3">
+            <div className="mx-auto h-14 w-14 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase">
-                ACESSO <span className="text-primary">RESTRITO</span>
-              </h2>
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-[0.2em] mt-1">Insira seu PIN de acesso</p>
+              <h1 className="text-2xl font-black italic uppercase text-white">Thita Admin</h1>
+              <p className="text-sm text-zinc-400">Acesso por conta autorizada do Supabase.</p>
             </div>
           </div>
 
-          <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/5 p-8 rounded-3xl shadow-2xl space-y-6">
-            <div className="space-y-4">
-              <Input 
-                type="password" 
-                placeholder="****" 
-                className={`text-center text-4xl tracking-[0.5em] font-black h-20 bg-zinc-950/50 border-white/5 focus:border-primary/50 transition-all rounded-2xl ${pinError ? 'border-destructive ring-destructive animate-shake' : ''}`}
-                maxLength={4}
-                value={pinInput}
-                onChange={(e) => {
-                  setPinInput(e.target.value);
-                  setPinError(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') verifyPin();
-                }}
-                autoFocus
-              />
-              {pinError && (
-                <p className="text-xs text-destructive font-bold text-center uppercase tracking-wider animate-bounce">
-                  PIN INCORETO! TENTE NOVAMENTE
-                </p>
-              )}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="staff-email" className="text-zinc-200">E-mail</Label>
+              <Input id="staff-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" className="bg-zinc-950 border-white/10" />
             </div>
-
-            <Button onClick={verifyPin} className="w-full h-14 text-base font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-              ENTRAR NO PAINEL
+            <div className="space-y-2">
+              <Label htmlFor="staff-password" className="text-zinc-200">Senha</Label>
+              <Input id="staff-password" type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setLoginError(''); }} onKeyDown={(e) => { if (e.key === 'Enter') void handleLogin(); }} className="bg-zinc-950 border-white/10" />
+            </div>
+            {loginError && <p className="text-sm text-red-400" role="alert">{loginError}</p>}
+            <Button onClick={() => void handleLogin()} disabled={isSigningIn} className="w-full h-12 font-black uppercase tracking-wider">
+              {isSigningIn ? 'Entrando...' : 'Entrar no painel'}
             </Button>
-            
-            <Link to="/" className="block text-center text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">
-              Voltar para o site
-            </Link>
           </div>
+
+          <Link to="/" className="block text-center text-xs font-bold uppercase tracking-wider text-zinc-500 hover:text-white">Voltar ao cardápio</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <Tabs defaultValue="orders" value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 bg-zinc-950 border-b border-primary/20 shadow-lg backdrop-blur-md bg-zinc-950/90">
-        <div className="container py-2 sm:py-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center justify-between">
-              <Link to="/" className="flex items-center gap-3 group">
-                <img 
-                  src="/logo.png" 
-                  alt="Logo" 
-                  className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-full border border-primary/30"
-                />
-                <div className="flex flex-col">
-                  <h1 className="text-sm sm:text-base font-black italic tracking-tighter text-white uppercase leading-none group-hover:text-primary transition-colors">
-                    THITA <span className="text-primary italic">ADMIN</span>
-                  </h1>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Painel de Controle</span>
-                    <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></span>
-                  </div>
-                </div>
-              </Link>
-              
-              <div className="flex md:hidden items-center gap-2">
-                <Button
-                  onClick={() => setIsManualOrderOpen(true)}
-                  size="sm"
-                  className="gap-1.5 h-8 px-3 rounded-full bg-primary hover:bg-red-700 text-white font-bold text-xs shadow-lg shadow-primary/20"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Novo</span>
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-primary">
-                      {userRole === 'admin' ? <ShieldCheck className="w-4 h-4 text-primary" /> : <UserCircle className="w-4 h-4" />}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Alternar Perfil</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleRoleChange('admin')} className="gap-2">
-                      <ShieldCheck className="w-4 h-4" /> Admin
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleRoleChange('employee')} className="gap-2">
-                      <UserCircle className="w-4 h-4" /> Funcionário
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer">
-                      <LogOut className="w-4 h-4" /> Sair / Bloquear
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-50 border-b border-primary/20 bg-zinc-950/95 backdrop-blur-md">
+        <div className="container py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-4">
+            <Link to="/" className="flex items-center gap-3">
+              <img src="/logo.png" alt="Thita Lanches" className="h-10 w-10 rounded-full object-contain border border-primary/30" />
+              <div>
+                <p className="font-black italic uppercase text-white leading-none">Thita <span className="text-primary">Admin</span></p>
+                <p className="text-[10px] uppercase tracking-widest text-zinc-500">{userRole === 'admin' ? 'Administrador' : 'Funcionário'}</p>
               </div>
-            </div>
+            </Link>
+            <Button size="sm" onClick={() => setIsManualOrderOpen(true)} className="lg:hidden gap-1"><Plus className="h-4 w-4" />Novo</Button>
+          </div>
 
-            <div className="flex items-center justify-center sm:justify-start">
-              <TabsList className="bg-zinc-900 border border-white/5 p-1 h-10 gap-1 rounded-full px-2">
-                <TabsTrigger value="pdv" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white font-black">
-                  <Store className="w-4 h-4" />
-                  <span className="hidden xs:inline">Frente de Caixa (PDV)</span>
-                </TabsTrigger>
-                <TabsTrigger value="orders" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white font-bold">
-                  <ListChecks className="w-4 h-4" />
-                  <span className="hidden xs:inline">Pedidos</span>
-                </TabsTrigger>
-                <TabsTrigger value="kds" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white font-bold">
-                  <ChefHat className="w-4 h-4" />
-                  <span className="hidden xs:inline">Cozinha KDS</span>
-                </TabsTrigger>
-                {userRole === 'admin' && (
-                  <TabsTrigger value="menu" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
-                    <UtensilsCrossed className="w-4 h-4" />
-                    <span className="hidden xs:inline">Cardápio</span>
-                  </TabsTrigger>
-                )}
-                {userRole === 'admin' && (
-                  <TabsTrigger value="reports" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
-                    <BarChart3 className="w-4 h-4" />
-                    <span className="hidden xs:inline">Relatórios</span>
-                  </TabsTrigger>
-                )}
-                <TabsTrigger value="settings" className="gap-2 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full data-[state=active]:bg-primary data-[state=active]:text-white">
-                  <Settings className="w-4 h-4" />
-                  <span className="hidden xs:inline">Sistema</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
+          <div className="overflow-x-auto">
+            <TabsList className="bg-zinc-900 border border-white/5 h-10 rounded-full">
+              <TabsTrigger value="pdv"><Store className="w-4 h-4 mr-1" />PDV</TabsTrigger>
+              <TabsTrigger value="orders"><ListChecks className="w-4 h-4 mr-1" />Pedidos</TabsTrigger>
+              <TabsTrigger value="kds"><ChefHat className="w-4 h-4 mr-1" />Cozinha</TabsTrigger>
+              {userRole === 'admin' && <TabsTrigger value="menu"><UtensilsCrossed className="w-4 h-4 mr-1" />Cardápio</TabsTrigger>}
+              {userRole === 'admin' && <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1" />Relatórios</TabsTrigger>}
+              <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-1" />Sistema</TabsTrigger>
+            </TabsList>
+          </div>
 
-            <div className="hidden md:flex items-center gap-3">
-              {/* ── Novo Pedido Button in Header ── */}
-              <Button
-                onClick={() => setIsManualOrderOpen(true)}
-                className="gap-2 h-9 px-4 rounded-full bg-primary hover:bg-red-700 text-white font-bold text-xs shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all group"
-                title="Novo Pedido (Atalho: +)"
-              >
-                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-                <span className="font-black italic tracking-tighter uppercase">Novo Pedido</span>
-                <div className="flex items-center justify-center bg-black/20 rounded px-1.5 py-0.5 text-[9px] font-bold border border-white/10">
-                  +
-                </div>
-              </Button>
-              
-              <div className="w-px h-6 bg-white/10"></div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-primary">
-                    {userRole === 'admin' ? <ShieldCheck className="w-4 h-4 text-primary" /> : <UserCircle className="w-4 h-4" />}
-                    <span>{userRole === 'admin' ? 'Admin' : 'Funcionário'}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Alternar Perfil</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleRoleChange('admin')} className="gap-2">
-                    <ShieldCheck className="w-4 h-4" /> Admin
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleRoleChange('employee')} className="gap-2">
-                    <UserCircle className="w-4 h-4" /> Funcionário
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="gap-2 text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer">
-                    <LogOut className="w-4 h-4" /> Sair / Bloquear
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+          <div className="hidden lg:flex items-center gap-2">
+            <Button onClick={() => setIsManualOrderOpen(true)} className="gap-2"><Plus className="w-4 h-4" />Novo pedido</Button>
+            <Button variant="ghost" onClick={() => void handleLogout()} className="gap-2 text-zinc-400 hover:text-white"><LogOut className="w-4 h-4" />Sair</Button>
           </div>
         </div>
       </header>
 
-      <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-primary" />
-              Acesso Restrito
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2 text-center">
-              <p className="text-sm text-muted-foreground">Insira o PIN de administrador para acessar o painel completo.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pin">PIN de Acesso</Label>
-              <Input 
-                id="pin" 
-                type="password" 
-                placeholder="****" 
-                className={`text-center text-2xl tracking-[1em] font-black h-14 ${pinError ? 'border-destructive ring-destructive' : ''}`}
-                maxLength={4}
-                value={pinInput}
-                onChange={(e) => {
-                  setPinInput(e.target.value);
-                  setPinError(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') verifyPin();
-                }}
-                autoFocus
-              />
-              {pinError && <p className="text-xs text-destructive font-medium text-center">PIN incorreto. Tente novamente.</p>}
-            </div>
-            <Button onClick={verifyPin} className="w-full h-11 font-bold">Verificar Acesso</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <main className="container py-6 flex-1">
-          <TabsContent value="pdv" className="outline-none">
-            <PDVModule />
-          </TabsContent>
+        <TabsContent value="pdv"><PDVModule /></TabsContent>
+        <TabsContent value="orders" className="space-y-6"><DashboardStats /><KanbanBoard /></TabsContent>
+        <TabsContent value="kds"><KitchenKDS /></TabsContent>
+        {userRole === 'admin' && <TabsContent value="menu"><MenuManagement /></TabsContent>}
+        <TabsContent value="settings"><SystemDashboard /></TabsContent>
+        {userRole === 'admin' && <TabsContent value="reports"><InventoryReport /></TabsContent>}
+      </main>
 
-          <TabsContent value="orders" className="space-y-6 outline-none">
-            <DashboardStats />
-            <KanbanBoard />
-          </TabsContent>
-
-          <TabsContent value="kds" className="outline-none">
-            <KitchenKDS />
-          </TabsContent>
-
-          <TabsContent value="menu" className="outline-none">
-            <MenuManagement />
-          </TabsContent>
-
-          <TabsContent value="settings" className="outline-none">
-            <SystemDashboard />
-          </TabsContent>
-
-          <TabsContent value="reports" className="outline-none">
-            <InventoryReport />
-          </TabsContent>
-        </main>
-        
-        {/* Manual Order Form - Full page overlay */}
-        <ManualOrderForm 
-          isOpen={isManualOrderOpen} 
-          onClose={() => setIsManualOrderOpen(false)} 
-        />
-      </Tabs>
+      <ManualOrderForm isOpen={isManualOrderOpen} onClose={() => setIsManualOrderOpen(false)} />
+    </Tabs>
   );
 }

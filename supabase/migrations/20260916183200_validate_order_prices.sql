@@ -1,6 +1,5 @@
 -- ==============================================================================
 -- THITA LANCHES — SERVER-SIDE ORDER PRICE VALIDATION
--- Never trust prices, totals, delivery fees or extra prices sent by the browser.
 -- ==============================================================================
 
 CREATE OR REPLACE FUNCTION public.validate_order_prices_function()
@@ -24,8 +23,6 @@ DECLARE
   v_product_json JSONB;
   v_extras_json JSONB;
 BEGIN
-  -- A bill_request is an operational event, not a sale. It intentionally has no
-  -- line items and may not carry a customer-controlled monetary total.
   IF COALESCE(NEW.order_type, 'sale') = 'bill_request' THEN
     IF NEW.origin <> 'table' THEN
       RAISE EXCEPTION 'bill requests are only valid for table orders';
@@ -122,8 +119,6 @@ BEGIN
 
   NEW.items := v_sanitized_items;
 
-  -- Delivery fee is derived from the distance band, never from deliveryFee sent
-  -- by the browser. Distances beyond 12 km are rejected.
   IF NEW.pickup_type = 'delivery' THEN
     IF NEW.delivery_info IS NULL THEN
       RAISE EXCEPTION 'Informações de entrega são obrigatórias.';
