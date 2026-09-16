@@ -1,122 +1,184 @@
 -- ==============================================================================
--- TRIGGER DE VALIDAÇÃO E PROTEÇÃO DE PREÇOS NO BANCO DE DADOS (SUPABASE / POSTGRESQL)
--- Thita Lanches - Proteção contra fraude e adulteração client-side de pedidos
+-- THITA LANCHES — SERVER-SIDE ORDER PRICE VALIDATION
+-- Never trust prices, totals, delivery fees or extra prices sent by the browser.
 -- ==============================================================================
 
--- 1. Criação ou substituição da função PL/pgSQL de validação de pedidos
-CREATE OR REPLACE FUNCTION validate_order_prices_function()
+CREATE OR REPLACE FUNCTION public.validate_order_prices_function()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = ''
 AS $$
 DECLARE
-  item RECORD;
-  extra RECORD;
-  v_prod_id TEXT;
-  v_db_prod_price NUMERIC(10,2);
-  v_item_qty INTEGER;
-  v_extras_sum NUMERIC(10,2);
-  v_db_extra_price NUMERIC(10,2);
-  v_calculated_subtotal NUMERIC(10,2) := 0;
+  v_item JSONB;
+  v_extra JSONB;
+  v_product_id TEXT;
+  v_product_price NUMERIC(10,2);
+  v_quantity INTEGER;
+  v_extra_price NUMERIC(10,2);
+  v_extras_total NUMERIC(10,2);
+  v_subtotal NUMERIC(10,2) := 0;
   v_delivery_fee NUMERIC(10,2) := 0;
-  v_min_acceptable_total NUMERIC(10,2);
-  v_sanitized_items JSONB := '[]'::jsonb;
-  v_item_json JSONB;
+  v_distance NUMERIC(10,2);
+  v_sanitized_items JSONB := '[]'::JSONB;
   v_product_json JSONB;
+  v_extras_json JSONB;
 BEGIN
-  -- Se o pedido não contém itens, rejeita a inserção
-  IF NEW.items IS NULL OR jsonb_array_length(NEW.items) = 0 THEN
+  -- A bill_request is an operational event, not a sale. It intentionally has no
+  -- line items and may not carry a customer-controlled monetary total.
+  IF COALESCE(NEW.order_type, 'sale') = 'bill_request' THEN
+    IF NEW.origin <> 'table' THEN
+      RAISE EXCEPTION 'bill requests are only valid for table orders';
+    END IF;
+    NEW.items := '[]'::JSONB;
+    NEW.total := 0;
+    NEW.delivery_info := NULL;
+    NEW.payment_status := 'pending';
+    NEW.status := 'received';
+    RETURN NEW;
+  END IF;
+
+  IF NEW.items IS NULL OR jsonb_typeof(NEW.items) <> 'array' OR jsonb_array_length(NEW.items) = 0 THEN
     RAISE EXCEPTION 'O pedido deve conter pelo menos um item válido.';
   END IF;
 
-  -- 1. Itera por cada item do carrinho enviado no JSONB
-  FOR v_item_json IN SELECT * FROM jsonb_array_elements(NEW.items)
+  IF jsonb_array_length(NEW.items) > 50 THEN
+    RAISE EXCEPTION 'Quantidade de itens acima do limite permitido.';
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(NEW.items)
   LOOP
-    v_prod_id := v_item_json->'product'->>'id';
-    v_item_qty := COALESCE((v_item_json->>'quantity')::INTEGER, 1);
-    
-    IF v_item_qty <= 0 THEN
-      v_item_qty := 1;
+    v_product_id := v_item->'product'->>'id';
+    IF v_product_id IS NULL OR length(v_product_id) > 100 THEN
+      RAISE EXCEPTION 'Produto inválido.';
     END IF;
 
-    -- Busca o preço real e oficial do produto cadastrado no banco de dados
-    v_db_prod_price := NULL;
-    IF v_prod_id IS NOT NULL THEN
-      SELECT price INTO v_db_prod_price 
-      FROM products 
-      WHERE id::text = v_prod_id 
-      LIMIT 1;
+    BEGIN
+      v_quantity := COALESCE((v_item->>'quantity')::INTEGER, 1);
+    EXCEPTION WHEN invalid_text_representation THEN
+      RAISE EXCEPTION 'Quantidade de produto inválida.';
+    END;
+
+    IF v_quantity < 1 OR v_quantity > 99 THEN
+      RAISE EXCEPTION 'Quantidade de produto fora do limite permitido.';
     END IF;
 
-    -- Se não encontrar o produto no banco (ex: produto avulso no balcão), usa o preço enviado com fallback
-    IF v_db_prod_price IS NULL THEN
-      v_db_prod_price := COALESCE((v_item_json->'product'->>'price')::NUMERIC, 0);
+    SELECT p.price
+      INTO v_product_price
+      FROM public.products p
+     WHERE p.id::TEXT = v_product_id
+       AND p.is_active = TRUE
+     LIMIT 1;
+
+    IF v_product_price IS NULL THEN
+      RAISE EXCEPTION 'Produto inexistente ou indisponível: %', v_product_id;
     END IF;
 
-    -- 2. Itera pelos complementos/adicionais do item
-    v_extras_sum := 0;
-    IF v_item_json->'selectedExtras' IS NOT NULL AND jsonb_typeof(v_item_json->'selectedExtras') = 'array' THEN
-      FOR extra IN SELECT * FROM jsonb_array_elements(v_item_json->'selectedExtras')
+    v_extras_total := 0;
+    v_extras_json := '[]'::JSONB;
+
+    IF v_item ? 'selectedExtras' THEN
+      IF jsonb_typeof(v_item->'selectedExtras') <> 'array' THEN
+        RAISE EXCEPTION 'Complementos inválidos.';
+      END IF;
+
+      IF jsonb_array_length(v_item->'selectedExtras') > 30 THEN
+        RAISE EXCEPTION 'Quantidade de complementos acima do limite.';
+      END IF;
+
+      FOR v_extra IN SELECT value FROM jsonb_array_elements(v_item->'selectedExtras')
       LOOP
-        v_db_extra_price := NULL;
-        IF (extra.value->>'id') IS NOT NULL THEN
-          SELECT price INTO v_db_extra_price 
-          FROM category_extra_items 
-          WHERE id::text = (extra.value->>'id') 
-          LIMIT 1;
+        IF v_extra->>'id' IS NULL THEN
+          RAISE EXCEPTION 'Complemento sem identificador.';
         END IF;
 
-        IF v_db_extra_price IS NULL THEN
-          v_db_extra_price := COALESCE((extra.value->>'price')::NUMERIC, 0);
+        SELECT e.price
+          INTO v_extra_price
+          FROM public.category_extra_items e
+         WHERE e.id::TEXT = (v_extra->>'id')
+           AND e.is_active = TRUE
+         LIMIT 1;
+
+        IF v_extra_price IS NULL THEN
+          RAISE EXCEPTION 'Complemento inexistente ou indisponível: %', v_extra->>'id';
         END IF;
 
-        v_extras_sum := v_extras_sum + v_db_extra_price;
+        v_extras_total := v_extras_total + v_extra_price;
+        v_extras_json := v_extras_json || jsonb_build_array(
+          v_extra || jsonb_build_object('price', v_extra_price)
+        );
       END LOOP;
     END IF;
 
-    -- Acumula no subtotal oficial calculado no servidor
-    v_calculated_subtotal := v_calculated_subtotal + ((v_db_prod_price + v_extras_sum) * v_item_qty);
-
-    -- Atualiza o objeto do produto dentro do JSONB garantindo que o preço registrado seja o oficial
-    v_product_json := (v_item_json->'product') || jsonb_build_object('price', v_db_prod_price);
-    v_item_json := v_item_json || jsonb_build_object('product', v_product_json, 'quantity', v_item_qty);
-    v_sanitized_items := v_sanitized_items || jsonb_build_array(v_item_json);
+    v_subtotal := v_subtotal + ((v_product_price + v_extras_total) * v_quantity);
+    v_product_json := (v_item->'product') || jsonb_build_object('price', v_product_price);
+    v_item := v_item || jsonb_build_object(
+      'product', v_product_json,
+      'quantity', v_quantity,
+      'selectedExtras', v_extras_json
+    );
+    v_sanitized_items := v_sanitized_items || jsonb_build_array(v_item);
   END LOOP;
 
-  -- 3. Atualiza os itens com os valores oficiais sanitizados
   NEW.items := v_sanitized_items;
 
-  -- 4. Extrai a taxa de entrega
-  IF NEW.delivery_info IS NOT NULL THEN
-    v_delivery_fee := COALESCE((NEW.delivery_info->>'deliveryFee')::NUMERIC, 0);
+  -- Delivery fee is derived from the distance band, never from deliveryFee sent
+  -- by the browser. Distances beyond 12 km are rejected.
+  IF NEW.pickup_type = 'delivery' THEN
+    IF NEW.delivery_info IS NULL THEN
+      RAISE EXCEPTION 'Informações de entrega são obrigatórias.';
+    END IF;
+
+    BEGIN
+      v_distance := (NEW.delivery_info->>'distanceKm')::NUMERIC;
+    EXCEPTION WHEN invalid_text_representation THEN
+      RAISE EXCEPTION 'Distância de entrega inválida.';
+    END;
+
+    IF v_distance IS NULL OR v_distance < 0 OR v_distance > 12 THEN
+      RAISE EXCEPTION 'Endereço fora da área de entrega.';
+    END IF;
+
+    v_delivery_fee := CASE
+      WHEN v_distance <= 1 THEN 3.00
+      WHEN v_distance <= 2 THEN 4.25
+      WHEN v_distance <= 3 THEN 5.50
+      WHEN v_distance <= 4 THEN 6.75
+      WHEN v_distance <= 5 THEN 8.00
+      WHEN v_distance <= 6 THEN 9.25
+      WHEN v_distance <= 7 THEN 10.50
+      WHEN v_distance <= 8 THEN 11.75
+      WHEN v_distance <= 9 THEN 13.00
+      WHEN v_distance <= 10 THEN 14.25
+      WHEN v_distance <= 11 THEN 15.50
+      ELSE 16.75
+    END;
+
+    NEW.delivery_info := NEW.delivery_info || jsonb_build_object('deliveryFee', v_delivery_fee);
+  ELSE
+    v_delivery_fee := 0;
+    IF NEW.delivery_info IS NOT NULL THEN
+      NEW.delivery_info := NEW.delivery_info - 'deliveryFee';
+    END IF;
   END IF;
 
-  -- 5. Validação de Fraude no Total
-  -- O total não pode ser negativo ou nulo se houver produtos no pedido.
-  -- Permitimos descontos de cupons legítimos (até no máximo o subtotal), mas se o total for forjado
-  -- como um valor absurdo (ex: R$ 0.01 ou R$ 0.00 sem cupom válido), o banco ajusta para o valor real calculado.
-  IF NEW.total <= 0 OR NEW.total > (v_calculated_subtotal + v_delivery_fee + 100) THEN
-    NEW.total := v_calculated_subtotal + v_delivery_fee;
-  END IF;
+  NEW.total := round(v_subtotal + v_delivery_fee, 2);
 
-  -- Se o cliente tentou injetar um valor menor que 50% do subtotal sem autorização
-  IF NEW.total < ((v_calculated_subtotal + v_delivery_fee) * 0.5) AND v_calculated_subtotal > 15 THEN
-    -- Auto-corrige o total para evitar perda financeira
-    NEW.total := v_calculated_subtotal + v_delivery_fee;
+  IF NEW.total < 0 THEN
+    RAISE EXCEPTION 'Total inválido.';
   END IF;
 
   RETURN NEW;
 END;
 $$;
 
--- 2. Criação do Trigger na tabela `orders`
-DROP TRIGGER IF EXISTS trg_validate_order_prices ON orders;
-
+DROP TRIGGER IF EXISTS trg_validate_order_prices ON public.orders;
 CREATE TRIGGER trg_validate_order_prices
-BEFORE INSERT OR UPDATE OF items, total, delivery_info
-ON orders
+BEFORE INSERT OR UPDATE OF items, total, delivery_info, pickup_type, order_type
+ON public.orders
 FOR EACH ROW
-EXECUTE FUNCTION validate_order_prices_function();
+EXECUTE FUNCTION public.validate_order_prices_function();
 
--- Confirmação
-COMMENT ON FUNCTION validate_order_prices_function() IS 'Valida e sanitiza os preços dos itens e total do pedido contra fraudes client-side.';
+REVOKE ALL ON FUNCTION public.validate_order_prices_function() FROM PUBLIC;
+COMMENT ON FUNCTION public.validate_order_prices_function() IS
+  'Canonicaliza preços, complementos, quantidade, entrega e total no servidor; aceita bill_request com valor zero.';
