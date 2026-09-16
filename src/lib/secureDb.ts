@@ -46,12 +46,29 @@ function mapOrder(o: any): Order {
   };
 }
 
+async function withSignedPixProof(orderRow: any): Promise<Order> {
+  const order = mapOrder(orderRow);
+  if (!orderRow.pix_proof_path) return order;
+
+  const { data, error } = await supabase.storage
+    .from('pix-proofs')
+    .createSignedUrl(orderRow.pix_proof_path, 10 * 60);
+
+  if (!error && data?.signedUrl) {
+    order.pixProofUrl = data.signedUrl;
+  }
+  return order;
+}
+
 export const secureDb = {
   async getProducts(): Promise<Product[]> {
     const staff = await getStaffSession();
     if (staff?.role === 'admin') {
       const { data, error } = await supabase.rpc('get_staff_products');
-      if (!error && data) return data.map(mapProduct);
+      if (!error && data) {
+        const rows = Array.isArray(data) ? data : [data];
+        return rows.map(mapProduct);
+      }
     }
 
     const { data, error } = await supabase
@@ -83,7 +100,9 @@ export const secureDb = {
       p_badge: product.badge || null,
     });
     if (error) throw error;
-    return mapProduct(data);
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error('O produto não foi retornado após a gravação.');
+    return mapProduct(row);
   },
 
   async createOrder(order: Omit<Order, 'id' | 'number' | 'createdAt'>): Promise<Order> {
@@ -129,6 +148,19 @@ export const secureDb = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(mapOrder);
+  },
+
+  async getStaffOrders(): Promise<Order[]> {
+    const staff = await getStaffSession();
+    if (!staff) throw new Error('Sessão de equipe necessária.');
+
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    return Promise.all((data || []).map(withSignedPixProof));
   },
 
   async attachPixProof(orderId: string, dataUrl: string): Promise<void> {
