@@ -6,67 +6,82 @@ export interface StoreOpenStatus {
   nextTimeText?: string;
 }
 
+const parseMinutes = (value: string) => {
+  const [hours, minutes] = value.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
 export function checkStoreOpenStatus(settings: StoreSettings): StoreOpenStatus {
-  // Se o admin desativou manualmente o funcionamento
   if (settings.isOpen === false) {
     return {
       isOpen: false,
       statusText: 'Loja Fechada',
-      nextTimeText: 'Fechada temporariamente pelo administrador'
+      nextTimeText: 'Fechada temporariamente pelo administrador',
     };
   }
 
   const hours = settings.openingHours || [];
   if (hours.length === 0) {
-    return {
-      isOpen: true,
-      statusText: 'Loja Aberta'
-    };
+    return { isOpen: true, statusText: 'Loja Aberta' };
   }
 
   const now = new Date();
-  const currentDay = now.getDay(); // 0 = Domingo, 1 = Segunda...
+  const currentDay = now.getDay();
+  const previousDay = (currentDay + 6) % 7;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // Procura horário cadastrado para o dia da semana atual
-  const todaysHours = hours.filter(h => h.dayOfWeek === currentDay);
+  const today = hours.filter((entry) => entry.dayOfWeek === currentDay);
+  const previous = hours.filter((entry) => entry.dayOfWeek === previousDay);
 
-  for (const h of todaysHours) {
-    if (!h.openTime || !h.closeTime) continue;
+  for (const entry of today) {
+    if (!entry.openTime || !entry.closeTime) continue;
+    const openMinutes = parseMinutes(entry.openTime);
+    const closeMinutes = parseMinutes(entry.closeTime);
+    if (openMinutes === null || closeMinutes === null) continue;
 
-    const [openH, openM] = h.openTime.split(':').map(Number);
-    const [closeH, closeM] = h.closeTime.split(':').map(Number);
+    const crossesMidnight = closeMinutes <= openMinutes;
+    const isOpenNow = crossesMidnight
+      ? currentMinutes >= openMinutes
+      : currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
 
-    let openMinutes = openH * 60 + openM;
-    let closeMinutes = closeH * 60 + closeM;
-
-    // Se o horário de fechamento for na madrugada do dia seguinte (ex: 18:00 às 02:00)
-    if (closeMinutes <= openMinutes) {
-      closeMinutes += 24 * 60;
-    }
-
-    let checkMinutes = currentMinutes;
-    // Se passou da meia-noite e o horário abria no dia anterior
-    if (checkMinutes < openMinutes && closeMinutes > 24 * 60) {
-      checkMinutes += 24 * 60;
-    }
-
-    if (checkMinutes >= openMinutes && checkMinutes <= closeMinutes) {
+    if (isOpenNow) {
       return {
         isOpen: true,
         statusText: 'Loja Aberta',
-        nextTimeText: `Fecha às ${h.closeTime}`
+        nextTimeText: `Fecha às ${entry.closeTime}`,
       };
     }
   }
 
-  // Se chegou aqui, está fora do horário do dia
-  const firstToday = todaysHours[0];
-  const nextText = firstToday?.openTime ? `Abre hoje às ${firstToday.openTime}` : 'Consulte os horários de funcionamento';
+  for (const entry of previous) {
+    if (!entry.openTime || !entry.closeTime) continue;
+    const openMinutes = parseMinutes(entry.openTime);
+    const closeMinutes = parseMinutes(entry.closeTime);
+    if (openMinutes === null || closeMinutes === null) continue;
+
+    const crossesMidnight = closeMinutes <= openMinutes;
+    if (crossesMidnight && currentMinutes <= closeMinutes) {
+      return {
+        isOpen: true,
+        statusText: 'Loja Aberta',
+        nextTimeText: `Fecha às ${entry.closeTime}`,
+      };
+    }
+  }
+
+  const nextToday = today
+    .filter((entry) => entry.openTime)
+    .map((entry) => ({ entry, minutes: parseMinutes(entry.openTime) }))
+    .filter((candidate): candidate is { entry: StoreSettings['openingHours'][number]; minutes: number } => candidate.minutes !== null)
+    .filter((candidate) => candidate.minutes > currentMinutes)
+    .sort((a, b) => a.minutes - b.minutes)[0];
 
   return {
     isOpen: false,
     statusText: 'Loja Fechada',
-    nextTimeText: nextText
+    nextTimeText: nextToday
+      ? `Abre hoje às ${nextToday.entry.openTime}`
+      : 'Consulte os horários de funcionamento',
   };
 }
