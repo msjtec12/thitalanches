@@ -1,326 +1,163 @@
+import { useEffect, useState } from 'react';
+import { DollarSign, Map, QrCode, Settings2, Store } from 'lucide-react';
+import { toast } from 'sonner';
 import { useOrders } from '@/contexts/OrderContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Store, Clock, DollarSign, Wallet, CreditCard, Banknote, Lock, Settings2, Map, QrCode } from 'lucide-react';
-import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
-import { formatPrice } from '@/utils/format';
-import { useState, useEffect } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CashierModule } from './CashierModule';
 import { DeliveryConfig } from './DeliveryConfig';
 import { TableQRManager } from './TableQRManager';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from "sonner";
+import { formatPrice } from '@/utils/format';
+import { maskPhone, unmaskPhone } from '@/utils/phoneHelper';
 
 export function SystemDashboard() {
   const { settings, updateSettings, orders, userRole } = useOrders();
   const [localSettings, setLocalSettings] = useState(settings);
+  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
+  useEffect(() => setLocalSettings(settings), [settings]);
 
-  // Stats calculation
-  const completedOrders = orders.filter(o => o.status === 'completed');
-  const totalSales = completedOrders.reduce((sum, o) => sum + o.total, 0);
-  
-  const webOrders = completedOrders.filter(o => o.origin === 'online');
-  const counterOrders = completedOrders.filter(o => o.origin !== 'online');
+  const completedOrders = orders.filter((order) => order.status === 'completed');
+  const totalSales = completedOrders.reduce((sum, order) => sum + order.total, 0);
 
-  const webSales = webOrders.reduce((sum, o) => sum + o.total, 0);
-  const counterSales = counterOrders.reduce((sum, o) => sum + o.total, 0);
-
-  const salesByMethod = completedOrders.reduce((acc, o) => {
-    let method = o.paymentMethod || 'cash';
-    acc[method] = (acc[method] || 0) + o.total;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const totalCards = (salesByMethod.card || 0) + (salesByMethod.credit_card || 0) + (salesByMethod.debit_card || 0);
-
-  const handleSaveSettings = () => {
-    updateSettings(localSettings);
-    toast.success("Configurações salvas com sucesso!", {
-      description: "As alterações já estão valendo para a loja.",
-      duration: 3000,
-    });
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      // PIN is intentionally not part of settings anymore. Authorization is handled
+      // exclusively by Supabase Auth + staff_users/RLS.
+      const { adminPin: _legacyPin, ...safeSettings } = localSettings;
+      await updateSettings(safeSettings);
+      toast.success('Configurações salvas com segurança.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível salvar as configurações.';
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <Tabs defaultValue="overview" className="space-y-6">
-        <div className="w-full overflow-x-auto pb-2 scrollbar-none">
-          <TabsList className="bg-zinc-900/50 border border-white/5 p-1 h-auto min-h-[40px] gap-1 rounded-lg inline-flex w-max min-w-full justify-start sm:w-auto">
-            <TabsTrigger value="overview" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-              <DollarSign className="w-3.5 h-3.5" />
-              Visão Geral
-            </TabsTrigger>
-            {userRole === 'admin' && (
-              <TabsTrigger value="delivery" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                <Map className="w-3.5 h-3.5" />
-                Entrega / Taxas
-              </TabsTrigger>
-            )}
-            {userRole === 'admin' && (
-              <TabsTrigger value="config" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                <Settings2 className="w-3.5 h-3.5" />
-                Geral
-              </TabsTrigger>
-            )}
-            {userRole === 'admin' && (
-              <TabsTrigger value="qrcodes" className="gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                <QrCode className="w-3.5 h-3.5" />
-                QR Codes
-              </TabsTrigger>
-            )}
+        <div className="overflow-x-auto pb-2">
+          <TabsList className="inline-flex w-max min-w-full justify-start bg-zinc-900/50 border border-white/5">
+            <TabsTrigger value="overview" className="gap-2"><DollarSign className="w-4 h-4" />Visão geral</TabsTrigger>
+            {userRole === 'admin' && <TabsTrigger value="delivery" className="gap-2"><Map className="w-4 h-4" />Entrega</TabsTrigger>}
+            {userRole === 'admin' && <TabsTrigger value="config" className="gap-2"><Settings2 className="w-4 h-4" />Configurações</TabsTrigger>}
+            {userRole === 'admin' && <TabsTrigger value="qrcodes" className="gap-2"><QrCode className="w-4 h-4" />QR Codes</TabsTrigger>}
           </TabsList>
         </div>
 
-        <TabsContent value="overview" className="mt-0 space-y-6">
-           <CashierModule />
-           
-           {userRole === 'admin' && (
-             <div className="grid grid-cols-1 gap-6">
-               <Card className="border-border shadow-sm bg-primary/[0.01]">
-                 <CardHeader>
-                   <div className="flex items-center justify-between">
-                     <div>
-                       <CardTitle className="text-base flex items-center gap-2">
-                         <DollarSign className="w-4 h-4 text-primary" />
-                         Faturamento Total (Bruto)
-                       </CardTitle>
-                       <CardDescription>Consolidado de todas as vendas concluídas.</CardDescription>
-                     </div>
-                     <p className="text-3xl font-black text-primary">{formatPrice(totalSales)}</p>
-                   </div>
-                 </CardHeader>
-                 <CardContent className="space-y-6">
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                     <div className="bg-background p-4 rounded-xl border border-border/50 shadow-sm hover:border-primary/30 transition-colors">
-                       <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                         <Wallet className="w-4 h-4" />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">Pix</span>
-                       </div>
-                       <p className="text-xl font-black">{formatPrice(salesByMethod.pix || 0)}</p>
-                     </div>
-                     <div className="bg-background p-4 rounded-xl border border-border/50 shadow-sm hover:border-primary/30 transition-colors">
-                       <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                         <CreditCard className="w-4 h-4" />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">Cartões</span>
-                       </div>
-                       <p className="text-xl font-black">{formatPrice(totalCards)}</p>
-                       <div className="flex gap-2 mt-1">
-                          <span className="text-[9px] text-muted-foreground">Cr: {formatPrice(salesByMethod.credit_card || 0)}</span>
-                          <span className="text-[9px] text-muted-foreground">Déb: {formatPrice(salesByMethod.debit_card || 0)}</span>
-                       </div>
-                     </div>
-                     <div className="bg-background p-4 rounded-xl border border-border/50 shadow-sm hover:border-primary/30 transition-colors">
-                       <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                         <Banknote className="w-4 h-4" />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">Dinheiro</span>
-                       </div>
-                       <p className="text-xl font-black">{formatPrice(salesByMethod.cash || 0)}</p>
-                     </div>
-                   </div>
-
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 border-y border-border/50">
-                     <div className="p-3">
-                       <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">WhatsApp / Site</p>
-                       <p className="text-lg font-bold text-blue-600">{formatPrice(webSales)}</p>
-                       <p className="text-[10px] text-muted-foreground">{webOrders.length} pedidos</p>
-                     </div>
-                     <div className="text-right border-l border-border/50 p-3">
-                       <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Vendas Presenciais</p>
-                       <p className="text-lg font-bold text-orange-600">{formatPrice(counterSales)}</p>
-                       <p className="text-[10px] text-muted-foreground">{counterOrders.length} pedidos</p>
-                     </div>
-                   </div>
-                 </CardContent>
-               </Card>
-             </div>
-           )}
-        </TabsContent>
-
-        {userRole === 'admin' && (
-          <TabsContent value="delivery" className="mt-0">
-            <DeliveryConfig />
-          </TabsContent>
-        )}
-
-        <TabsContent value="config" className="mt-0">
+        <TabsContent value="overview" className="space-y-6">
+          <CashierModule />
           {userRole === 'admin' && (
-            <Card className="border-border shadow-sm max-w-2xl">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Store className="w-4 h-4 text-primary" />
-                  Geral do Sistema
-                </CardTitle>
-                <CardDescription>Configurações básicas de funcionamento.</CardDescription>
+                <CardTitle>Faturamento concluído</CardTitle>
+                <CardDescription>Somente pedidos marcados como concluídos.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="store-name">Nome da Loja</Label>
-                    <Input 
-                      id="store-name" 
-                      value={localSettings.name} 
-                      onChange={(e) => setLocalSettings({...localSettings, name: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp" className="flex items-center gap-2">WhatsApp Loja</Label>
-                    <Input 
-                      id="whatsapp" 
-                      placeholder="(00) 00000-0000"
-                      value={maskPhone(localSettings.whatsappNumber || '')} 
-                      onChange={(e) => setLocalSettings({...localSettings, whatsappNumber: unmaskPhone(e.target.value)})}
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="prep-time" className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5" />
-                      Tempo Médio (min)
-                    </Label>
-                    <Input 
-                      id="prep-time" 
-                      type="number" 
-                      value={localSettings.prepTime} 
-                      onChange={(e) => setLocalSettings({...localSettings, prepTime: Number(e.target.value)})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-pin" className="flex items-center gap-2">
-                      <Lock className="w-3.5 h-3.5" />
-                      PIN do Admin
-                    </Label>
-                    <Input 
-                      id="admin-pin" 
-                      type="password"
-                      maxLength={4}
-                      placeholder="**** (Oculto por segurança)"
-                      value={localSettings.adminPin || ''} 
-                      onChange={(e) => setLocalSettings({...localSettings, adminPin: e.target.value})}
-                    />
-                    <p className="text-[10px] text-muted-foreground italic">Preencha apenas se desejar alterar o PIN.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="logo">Logo da Loja (URL)</Label>
-                    <Input 
-                      id="logo" 
-                      placeholder="https://..."
-                      value={localSettings.logoUrl || ''} 
-                      onChange={(e) => setLocalSettings({...localSettings, logoUrl: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="color">Cor Principal</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        id="color" 
-                        type="color"
-                        className="w-12 p-1 h-10"
-                        value={localSettings.primaryColor || '#ef4444'} 
-                        onChange={(e) => setLocalSettings({...localSettings, primaryColor: e.target.value, primaryColorHover: e.target.value + 'dd'})}
-                      />
-                      <Input 
-                        value={localSettings.primaryColor || '#ef4444'} 
-                        onChange={(e) => setLocalSettings({...localSettings, primaryColor: e.target.value})}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg border border-border/50">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="store-open">Loja Aberta (Site)</Label>
-                    <p className="text-[10px] text-muted-foreground">Habilita ou desabilita as vendas pelo site.</p>
-                  </div>
-                  <Switch 
-                    id="store-open"
-                    checked={localSettings.isOpen}
-                    onCheckedChange={(checked) => setLocalSettings({...localSettings, isOpen: checked})}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="sound-notif" className="text-primary font-bold">Alertas Sonoros</Label>
-                    <p className="text-[10px] text-muted-foreground">Tocar som quando chegar um novo pedido.</p>
-                  </div>
-                  <Switch 
-                    id="sound-notif"
-                    checked={localSettings.isSoundEnabled}
-                    onCheckedChange={(checked) => setLocalSettings({...localSettings, isSoundEnabled: checked})}
-                  />
-                </div>
-                
-                <Button onClick={handleSaveSettings} className="w-full mt-4 h-12 font-black uppercase tracking-widest shadow-lg shadow-primary/20">Salvar Alterações</Button>
+              <CardContent>
+                <p className="text-3xl font-black text-primary">{formatPrice(totalSales)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{completedOrders.length} pedido(s) concluído(s)</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="qrcodes" className="mt-0 space-y-6">
-          {/* Card QR do Balcão */}
-          <Card className="border-border shadow-sm bg-zinc-900/40">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-primary" />
-                QR Code para Balcão / Retirada Rápida
-              </CardTitle>
-              <CardDescription>Para clientes fazerem o pedido direto do celular ao chegar no balcão da lanchonete.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="bg-white p-3 rounded-2xl border border-zinc-200 shadow-md flex-shrink-0">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '?origin=counter_qr')}`} 
-                  alt="QR Counter"
-                  className="w-36 h-36"
-                />
-              </div>
-              <div className="space-y-3 flex-1 text-center sm:text-left">
-                <div>
-                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">URL do Balcão:</p>
-                  <p className="text-xs break-all text-white font-mono bg-zinc-950 p-2.5 rounded-xl border border-white/5 mt-1">
-                    {window.location.origin}?origin=counter_qr
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="gap-2 font-bold text-xs border-white/10" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}?origin=counter_qr`);
-                      toast.success('Link do balcão copiado!');
-                    }}
-                  >
-                    Copiar Link
-                  </Button>
-                  <Button 
-                    size="sm"
-                    className="gap-2 font-bold text-xs bg-primary hover:bg-red-700 text-white" 
-                    onClick={() => window.print()}
-                  >
-                    Imprimir QR Balcão
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {userRole === 'admin' && (
+          <TabsContent value="delivery">
+            <DeliveryConfig />
+          </TabsContent>
+        )}
 
-          {/* Gerenciador Completo de Mesas */}
-          <TableQRManager />
-        </TabsContent>
+        {userRole === 'admin' && (
+          <TabsContent value="config">
+            <Card className="max-w-3xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Store className="w-4 h-4 text-primary" />Configurações da loja</CardTitle>
+                <CardDescription>Acesso administrativo é gerenciado por usuários do Supabase Auth, não por PIN.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="store-name">Nome da loja</Label>
+                    <Input id="store-name" value={localSettings.name} onChange={(e) => setLocalSettings({ ...localSettings, name: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">WhatsApp</Label>
+                    <Input id="whatsapp" value={maskPhone(localSettings.whatsappNumber || '')} onChange={(e) => setLocalSettings({ ...localSettings, whatsappNumber: unmaskPhone(e.target.value) })} />
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="prep-time">Tempo médio de preparo (min)</Label>
+                    <Input id="prep-time" type="number" min={1} max={240} value={localSettings.prepTime} onChange={(e) => setLocalSettings({ ...localSettings, prepTime: Number(e.target.value) })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="logo-url">Logo da loja (URL)</Label>
+                    <Input id="logo-url" value={localSettings.logoUrl || ''} onChange={(e) => setLocalSettings({ ...localSettings, logoUrl: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="primary-color">Cor principal</Label>
+                    <div className="flex gap-2">
+                      <Input id="primary-color" type="color" className="w-14 p-1" value={localSettings.primaryColor || '#ef4444'} onChange={(e) => setLocalSettings({ ...localSettings, primaryColor: e.target.value })} />
+                      <Input value={localSettings.primaryColor || '#ef4444'} onChange={(e) => setLocalSettings({ ...localSettings, primaryColor: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border p-4">
+                  <div>
+                    <Label htmlFor="store-open">Loja aberta para pedidos</Label>
+                    <p className="text-xs text-muted-foreground">Desative para impedir novos pedidos no cardápio.</p>
+                  </div>
+                  <Switch id="store-open" checked={localSettings.isOpen} onCheckedChange={(checked) => setLocalSettings({ ...localSettings, isOpen: checked })} />
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border p-4">
+                  <div>
+                    <Label htmlFor="sound-enabled">Alertas sonoros</Label>
+                    <p className="text-xs text-muted-foreground">Toca um aviso para novos pedidos no painel.</p>
+                  </div>
+                  <Switch id="sound-enabled" checked={Boolean(localSettings.isSoundEnabled)} onCheckedChange={(checked) => setLocalSettings({ ...localSettings, isSoundEnabled: checked })} />
+                </div>
+
+                <Button onClick={() => void handleSaveSettings()} disabled={isSaving} className="w-full h-11 font-bold">
+                  {isSaving ? 'Salvando...' : 'Salvar alterações'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {userRole === 'admin' && (
+          <TabsContent value="qrcodes" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><QrCode className="w-4 h-4 text-primary" />QR do balcão</CardTitle>
+                <CardDescription>Use o link abaixo para pedidos iniciados no balcão.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col sm:flex-row gap-5 items-center">
+                <div className="bg-white p-3 rounded-2xl">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}?origin=counter_qr`)}`} alt="QR Code do balcão" className="w-36 h-36" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <code className="block break-all rounded-lg bg-muted p-3 text-xs">{window.location.origin}?origin=counter_qr</code>
+                  <Button variant="outline" onClick={() => { void navigator.clipboard.writeText(`${window.location.origin}?origin=counter_qr`); toast.success('Link copiado.'); }}>Copiar link</Button>
+                </div>
+              </CardContent>
+            </Card>
+            <TableQRManager />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
